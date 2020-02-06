@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+
+from scalogram import Scalogram
+import sys
+
+if len(sys.argv) == 1:
+    command = sys.argv[0][sys.argv[0].rfind("/")+1:]
+    print("Usage:", command, "<wav-file-1> <wav-file-2> ...", file=sys.stderr)
+    print('######## Sinusoid Check ########')
+
+    sin_scal = Scalogram()
+
+    print('######## Complete ########')
+
+for arg in sys.argv[1:]:
+    if arg.endswith(".scal"):
+        print("Info on SCAL file \"" +arg+ "\":")
+        scal = Scalogram(arg)
+        print("   ", scal)
+        argmax = scal.argmax()
+        argmin = scal.argmin()
+        print("   max:", scal[argmax[0]][argmax[1]], "(t:", argmax[0], ", f:", argmax[1], ")")
+        print("   min:", scal[argmin[0]][argmin[1]], "(t:", argmin[0], ", f:", argmin[1], ")")
+        print("   mean:", scal.mean())
+        scal.write_to_png()
+    else:
+        print("Creating SCAL file from \"" +arg+ "\".")
+        scal = Scalogram(arg)
+        scal.write_to_file()
+        print("   ", scal)
+    
