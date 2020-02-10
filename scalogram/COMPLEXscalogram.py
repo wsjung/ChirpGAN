@@ -35,14 +35,15 @@ class Scalogram:
     # constants
     BANDWIDTH_FREQ = 100
 
-    def __init__(self, source, name = None):
+    def __init__(self, source = None, name = None):
         """Create a new Scalogram object from a WAV or SCAL file, or copy another Scalogram."""
+
         if type(source) == str:
             # open up a WAV file, make a new scalogram
             if source.lower().endswith(".wav"):
                 wav_data = Scalogram.extract_wav_data(source)
 
-                scal_data = Scalogram.do_transform(wav_data[1], wav_data[0], 2000, 1000, 3)
+                scal_data = Scalogram.do_transform(wav_data[1], wav_data[0], 2000, 20000, 2)
 
                 self.quality = 2000
                 self.freqs = scal_data[0]
@@ -65,7 +66,7 @@ class Scalogram:
                 num_freqs = int.from_bytes(in_stream.read(4), byteorder="little", signed=False)
 
                 self.freqs = np.fromfile(in_stream, "<f8", num_freqs)
-                self.data = np.fromfile(in_stream, "<f8")
+                self.data = np.fromfile(in_stream, "<c16")
                 self.data = self.data.reshape((int(len(self.data)/num_freqs), num_freqs))
             
                 in_stream.close()
@@ -84,6 +85,7 @@ class Scalogram:
         # final else--we didn't even get a string
         else:
             raise ValueError("Cannot make scalogram: source must be a file name!")
+            
             
     ############################################################################
     # BASIC UTILITIES
@@ -212,6 +214,8 @@ class Scalogram:
         out_stream.write((self.quality).to_bytes(4, byteorder="little", signed=False))
         out_stream.write((len(self.freqs)).to_bytes(4, byteorder="little", signed=False))
 
+        print(self.data.dtype)
+
         # then the freqs array and the amplitudes themselves, as little-endian doubles
         if sys.byteorder == "little":
             self.freqs.tofile(out_stream)
@@ -227,17 +231,74 @@ class Scalogram:
         from scipy.misc import toimage
         data = np.flipud(np.transpose(self.data)) # transpose & flip vertical
 
-        if filename == None: filename = self.name + ".png"
+        # print(self.data.dtype)
+        # print(data.dtype)
+
+        # print('read in-- mags[0][0]: ', self.data[0][0])
+        # print(data.real)
+        # print(data.imag)
+        
+        data_real = data.real
+        data_imag = data.imag
+        data_mag = np.abs(data)
+        print(data_mag.dtype)
+
+        print('data_real mean: ', np.mean(data_real))
+        print('data_real std: ', np.std(data_real))
+
+        data_real -= np.mean(data_real)
+        data_real /= np.std(data_real)
+
+        print('data_real max: ', np.max(data_real))
+        print('data_real min: ', np.min(data_real))
+
+
+        data_imag -= np.mean(data_imag)
+        data_imag /= np.std(data_imag)
+
+        print('data_imag max: ', np.max(data_imag))
+        print('data_imag min: ', np.min(data_imag))
+
+        data_mag -= np.mean(data_mag)
+        data_mag /= np.std(data_mag)
+
+        print('data_mag max: ', np.max(data_mag))
+        print('data_mag min: ', np.min(data_mag))
+
+        print('data_real.shape: ', data_real.shape)
+        print('data_imag.shape: ', data_imag.shape)
+        print('data_mag.shape: ', data_mag.shape)
+
+        filename_real = self.name + "_real.png"
+        filename_imag = self.name + "_imag.png"
+        filename_mag = self.name + "_mag.png"
+
+        # if filename == None: filename = self.name + ".png"
 
         # no scale--autoscale the sucker
         if scale == None:
             im = toimage(-data)
+            # im = Image.fromarray(-data)
             im.save(filename)
 
         # there is a scale--use it
         else:
-            im = toimage(scale[1] - data)
-            im.save(filename, cmin=scale[0], cmax=scale[1])
+            import matplotlib.cm as cm
+            cm_coolwarm = cm.get_cmap('binary')
+            data_real = cm_coolwarm(data_real)
+            im_real = toimage(data_real)
+            # im_real = Image.fromarray(data_real)
+            im_real.save(filename_real, cmin=scale[0], cmax=scale[1])
+
+            data_imag = cm_coolwarm(data_imag)
+            im_imag = toimage(data_imag)
+            # im_imag = Image.fromarray(data_imag)
+            im_imag.save(filename_imag, cmin=scale[0], cmax=scale[1])
+
+            data_mag = cm_coolwarm(data_mag)
+            im_mag = toimage(data_mag)
+            # im_mag = Image.fromarray(data_mag)
+            im_mag.save(filename_mag, cmin=scale[0], cmax=scale[1])
 
 
     ############################################################################
@@ -279,25 +340,56 @@ class Scalogram:
         w.close()
         return (quality, data)
 
+    # defaults:
+    #   num_octaves=2
+    #   voices_per_octave=64 
     @staticmethod
-    def do_transform(data, quality=44100, scalogram_quality = 2000, base_freq = 30000, num_octaves = 2, voices_per_octave = 50):
+    def do_transform(data, quality=44100, scalogram_quality = 2000, base_freq = 30000, num_octaves = 2, voices_per_octave = 150): 
+        print('quality: ', quality)
+        print('base_freq:', base_freq)
+        print('num_octaves: ', num_octaves)
+
         # figure out frequencies to test for
         central_freq = base_freq * (2**(num_octaves/2))
         freqs = np.geomspace(base_freq, base_freq * (2**num_octaves), num=num_octaves*voices_per_octave+1, endpoint=True)
 
         # allocation
         resampling_factor = int(quality / scalogram_quality)
-        mags = np.empty((int(len(data) * scalogram_quality / quality), len(freqs)))
+        mags = np.empty((int(len(data) * scalogram_quality / quality), len(freqs)), dtype=np.complex128)
+
+        print('freqs: ', len(freqs))
 
         # do each individual frequency, 1 at a time
         for f in range(len(freqs)):
             scale = central_freq / freqs[f]
             wavelet = Scalogram.make_wavelet(quality, central_freq, 0.000001, scale)
             #print(len(wavelet))
-            convolution = np.abs(np.convolve(data, wavelet, mode="same"))
+            # convolution = np.abs(np.convolve(data, wavelet, mode="same"))
+            convolution = np.convolve(data, wavelet, mode="same")
+
+            # print('wavelet dtype:', wavelet.dtype)
+            # print('conv dtype: ', convolution.dtype)
+
+            # print('conv list: ', [convolution[0:resampling_factor]])
 
             for t in range(len(mags)):
-                mags[t][f] = (abs(convolution[t*resampling_factor : (t+1)*resampling_factor])).mean()
+                mags[t][f] = (np.abs(convolution[t*resampling_factor : (t+1)*resampling_factor])).mean()
+                mags[t][f] = np.sum(convolution[t*resampling_factor : (t+1)*resampling_factor], dtype=np.complex128)
+                # conv_slice = convolution[t*resampling_factor : (t+1)*resampling_factor]
+                # # print(len(conv_slice))
+                # sum_real = np.sum(conv_slice.real)
+                # # print(sum_real)
+                # sum_imag = np.sum(conv_slice.imag)
+                # # print(sum_imag)
+                # avg_real = sum_real / len(conv_slice)
+                # avg_imag = sum_imag / len(conv_slice)
+                # # print(avg_real)
+                # # print(avg_imag)
+                # mags[t][f] = complex128(avg_real, avg_imag)
+                # # print(mags[t][f])
+                # # break
+
+        print('mags[0][0]: ', mags[0][0])
 
         return (freqs, mags)
 
