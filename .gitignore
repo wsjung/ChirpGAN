@@ -2,3 +2,4 @@ papers/
 scalogram/*.scal
 scalogram/*.wav
 scalogram/*.png
+.ipynb_checkpoints/

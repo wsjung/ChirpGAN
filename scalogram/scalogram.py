@@ -225,6 +225,7 @@ class Scalogram:
     def write_to_png(self, scale=(0.0,1.0), filename = None):
         """Output a PNG of the Scalogram"""
         from scipy.misc import toimage
+        #from PIL.Image import fromarray
         data = np.flipud(np.transpose(self.data)) # transpose & flip vertical
 
         if filename == None: filename = self.name + ".png"
@@ -232,11 +233,13 @@ class Scalogram:
         # no scale--autoscale the sucker
         if scale == None:
             im = toimage(-data)
+            #im = fromarray(-data, mode='L')
             im.save(filename)
 
         # there is a scale--use it
         else:
             im = toimage(scale[1] - data)
+            #im = fromarray(scale[1] - data, mode='L')
             im.save(filename, cmin=scale[0], cmax=scale[1])
 
 
@@ -280,7 +283,7 @@ class Scalogram:
         return (quality, data)
 
     @staticmethod
-    def do_transform(data, quality=44100, scalogram_quality = 2000, base_freq = 30000, num_octaves = 2, voices_per_octave = 50):
+    def do_transform(data, quality=44100, scalogram_quality = 2000, base_freq = 30000, num_octaves = 2, voices_per_octave = 64):
         # figure out frequencies to test for
         central_freq = base_freq * (2**(num_octaves/2))
         freqs = np.geomspace(base_freq, base_freq * (2**num_octaves), num=num_octaves*voices_per_octave+1, endpoint=True)
