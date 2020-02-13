@@ -18,4 +18,7 @@
 
 	$ ffmpeg -i FILE.wav -f segment -segment_time [DURATION IN SEC] -c copy [OUTPUT_FILE.wav]
 
+	Ex: $ ffmpeg -i ml-american-robin.wav -f segment -segment_time 1 -c copy robin%01d.wav
+	> produces 1 second wave slices of ml-american-robin.wav and saves as robin1.wav ... robinN.wav in cwd
+
 
