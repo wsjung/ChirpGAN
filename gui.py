@@ -11,21 +11,28 @@ main_layout = [
 ]
 
 load_data_layout = [
-	[sg.Text('Bird vocalization files to load...')],
-	[sg.In(), sg.FileBrowse()],
-	[sg.Open(), sg.Cancel()]
+	[sg.Text('Bird vocalization files to load: ')],
+	[sg.Input(key='_FILES_'), sg.FilesBrowse()],
+	[sg.OK(), sg.Cancel()]
 ]
 
-load_data_popup = sg.Window('Load Data').Layout(load_data_layout)
+
+load_data_popup = sg.Window('Select audio file(s)').Layout(load_data_layout)
 main_window = sg.Window('Main Menu').Layout(main_layout)
 
 while True:
 	event, values = main_window.read()
-	print(event, values)
+	print('event: %s\nvalues: %s' % (event, values))
 	if event in ('Load Data'):
-	#	load_data_popup.read()
-		fnames = sg.popup_get_file('Bird vocalization files to load')
-		print(fnames)
+		while True:
+			ld_event, ld_values = load_data_popup.read()
+			#print('ld_event: %s\nld_values: %s' % (ld_event, ld_values))
+			if ld_event in ('OK'):
+				print('### SELECTED FILES ###')
+				print(ld_values['_FILES_'].split(';'))
+			if ld_event in (None, 'Cancel'):
+				load_data_popup.close()
+				break
 	if event in (None, 'Exit'):
 		break
 
