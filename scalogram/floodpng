@@ -1,0 +1,17 @@
+from floodfill import Floodfill
+import sys
+
+if len(sys.argv) == 1:
+	command = sys.argv[0][sys.argv[0].rfind("/")+1:]
+	print('Usage:', command, '<png-file-1> <png-file-2> ...', file=sys.stderr)
+#	print('##### Beginning flood fill #####')
+
+
+
+#	print('##### Complete #####')
+
+for arg in sys.argv[1:]:
+	if arg.endswith('.png'):
+		print('Info on PNG file \'' + arg + '\':')
+		png = Floodfill(arg)
+		png.write_to_png()
