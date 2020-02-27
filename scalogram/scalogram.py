@@ -42,7 +42,7 @@ class Scalogram:
             if source.lower().endswith(".wav"):
                 wav_data = Scalogram.extract_wav_data(source)
 
-                scal_data = Scalogram.do_transform(wav_data[1], wav_data[0], 2000, 1000, 3)
+                scal_data = Scalogram.do_transform(wav_data[1], wav_data[0], 2000, 1000, 3, voices_per_octave=85)
 
                 self.quality = 2000
                 self.freqs = scal_data[0]
