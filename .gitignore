@@ -3,3 +3,6 @@ scalogram/*.scal
 scalogram/*.wav
 scalogram/*.png
 .ipynb_checkpoints/
+dlwavfiles/
+credentials.json
+token.pickle
