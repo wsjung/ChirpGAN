@@ -56,17 +56,27 @@ def download_all_files(service, ids, names, dir):
     Returns:
         Downloads all files to specified directory
     """
+    
+    # check if specified directory exists
+    # if not, create it
+    path = os.path.join(getcwd(), dir)
+    if not os.path.isdir(path):
+        print('creating directory %s' % path)
+        os.mkdir(path)
 
-    # print(names)
 
-    assert len(ids) == len(names) # length of ids and names is equal
+    # directory must exist
+    assert os.path.isdir(path)
+
+    # length of ids and names is equal
+    assert len(ids) == len(names) 
     length = len(ids)
-    i = 0
+    i = 1
 
     for id,name in zip(ids,names):
         request = service.files().get_media(fileId=id)
 
-        fh = FileIO(os.path.join(getcwd(), dir, name), mode='wb')
+        fh = FileIO(os.path.join(path,name), mode='wb')
 
         downloader = MediaIoBaseDownload(fh, request)
 
