@@ -1,0 +1,93 @@
+from data_process_wav import DataSplitter
+from scalogram import Scalogram
+from floodfill import Floodfill
+import sys
+import os
+from notify_run import Notify
+
+if len(sys.argv) < 4:
+    command = sys.argv[0]
+    print('Usage:', command, '<wav-directory> <wav-save-directory> <png-save-directory>', file=sys.stderr)
+    exit(-1)
+
+
+wav_dir = sys.argv[1]
+wav_save_dir = sys.argv[2]
+png_save_dir = sys.argv[3]
+
+notify = Notify()
+
+print('###### Files found in %s ######' % wav_dir)
+print('###### Saving split files to %s ######' % wav_save_dir)
+
+data_splitter = DataSplitter(130, wav_dir, wav_save_dir)
+
+print('###### Complete ######')
+notify.send('Data Splitting complete')
+
+
+################################################################################
+### makescal on each wav file --> save each .scal file in separate directory ###
+################################################################################
+"""
+print('##### COMMENCING WAV --> SCAL CONVERSION #####')
+for f in os.listdir(wav_save_dir):
+    if f.endswith('.wav'):
+
+        fname = f[:f.rfind('.')] # remove .wav extension
+
+        print("Creating SCAL file from \"" + f + "\".")
+        scal = Scalogram(os.path.join(wav_save_dir, f))
+        scal.write_to_file(filename=os.path.join(png_save_dir, '%s.scal' % fname))
+        print("   ", scal)
+print('##### WAV --> SCAL COMPELTE #####')
+notify.send('Wav -> scal transformation complete')
+"""
+
+
+################################################################################
+### makescal on each scal file --> save each .png file in separate directory ###
+################################################################################
+"""
+print('##### COMMENCING SCAL --> PNG CONVERSION #####')
+for f in os.listdir(png_save_dir):
+    if f.endswith('.scal'):
+
+        fname = f[:f.rfind('.')] # remove .scal extension
+
+        print("Info on SCAL file \"" +f+ "\":")
+        scal = Scalogram(os.path.join(png_save_dir, f))
+        print("   ", scal)
+        argmax = scal.argmax()
+        argmin = scal.argmin()
+        print("   max:", scal[argmax[0]][argmax[1]], "(t:", argmax[0], ", f:", argmax[1], ")")
+        print("   min:", scal[argmin[0]][argmin[1]], "(t:", argmin[0], ", f:", argmin[1], ")")
+        print("   mean:", scal.mean())
+        scal.write_to_png(filename=os.path.join(png_save_dir, '%s.png' % fname))
+print('##### SCAL -> PNG #####')
+notify.send('scal -> png conversion complete')
+"""
+
+
+######################################################
+### floodpng on each png file --> flooded png file ###
+######################################################
+"""
+for png in os.listdir(png_save_dir):
+    if png.endswith('.png'):
+
+        fname = png[:png.rfind('.')] # remove .png extension
+        print(png)
+
+        print('Info on PNG file \'' + png + '\':')
+        png = Floodfill(os.path.join(png_save_dir, png))
+        png.write_to_png(filename=os.path.join(png_save_dir, '%s_flooded.png' % fname));
+print('##### PNG FILE FLOODED #####')
+notify.send('png files flooded')
+"""
+
+
+#############################################################
+### Notify myself using qr code notif when process donezo ###
+#############################################################
+notify.send('ALL DONE')

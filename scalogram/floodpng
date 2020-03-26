@@ -1,12 +1,14 @@
 from floodfill import Floodfill
 import sys
+import os
 
 ########################
 # Error -- print usage #
 ########################
 if len(sys.argv) == 1:
 	command = sys.argv[0][sys.argv[0].rfind("/")+1:]
-	print('Usage:', command, '<png-file-1> <png-file-2> ...', file=sys.stderr)
+	#print('Usage:', command, '<png-file-1> <png-file-2> ...', file=sys.stderr)
+	print('Usage:', command, '<directory-1> <directory-2> ...', file=sys.stderr)
 	exit(-1)
 
 
@@ -17,11 +19,23 @@ if len(sys.argv) == 1:
 print('##### Beginning flood fill #####')
 
 for arg in sys.argv[1:]:
-	if arg.endswith('.png'):
-		print('Info on PNG file \'' + arg + '\':')
-		png = Floodfill(arg)
-		png.write_to_png()
 
+	fullpath = os.path.join(os.getcwd(), arg)
+
+	if not os.path.isdir(fullpath):
+		print('ERROR: %s is not a directory' % fullpath)
+		exit(-1)
+
+	for file in os.listdir(fullpath):
+		if file.endswith(".png"):
+			print('Info on PNG file \'' + file + '\':')
+			png = Floodfill(file)
+			png.write_to_png();
+
+	#if arg.endswith('.png'):
+	#	print('Info on PNG file \'' + arg + '\':')
+	#	png = Floodfill(arg)
+	#	png.write_to_png()
 
 
 print('##### Complete #####')

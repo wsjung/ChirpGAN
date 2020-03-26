@@ -9,16 +9,20 @@ class Floodfill:
 	def __init__(self, source, name = None):
 		if type(source) == str:
 			if source.lower().endswith('.png'):
+				self.name = source[:-4]
 				img = Image.open(source)
 				tmp = np.array(img)
 
 				# display image
+				"""
 				f = plt.figure(figsize=(10,10))
-				plt.imshow(tmp[:,12000:20000], cmap='inferno')
+				plt.imshow(tmp, cmap='inferno')
 				plt.show()
-				f.savefig('./z_floodfill_testruns/orig.png', bbox_inches='tight')
+				"""
+				#f.savefig('./floodfill_testruns/orig.png', bbox_inches='tight')
+				img.save('./floodfill_testruns/orig.png')
 				img.close()
-				plt.close(f)
+				#plt.close(f)
 
 
 				
@@ -29,7 +33,8 @@ class Floodfill:
 					img = Image.open(source)
 					png_data = np.array(img)
 
-					flooded_png = Floodfill.flood_iterative(png_data[:,12000:20000], xy=(50,50), target_color=255, replacement_color=0, threshold=threshold)
+					#flooded_png = Floodfill.flood_iterative(png_data[:,12000:20000], xy=(50,50), target_color=255, replacement_color=0, threshold=threshold)
+					flooded_png = self.flood_iterative(png_data, xy=(50,50), target_color=255, replacement_color=0, threshold=threshold)
 					
 
 					#print(flooded_png)
@@ -40,7 +45,12 @@ class Floodfill:
 					fig = plt.figure(figsize=(10,10))
 					plt.imshow(flooded_png, cmap='inferno')
 					print('saving file..', end='', flush=True)
-					fig.savefig('./z_floodfill_testruns/8d_test_threshold_%d.png' % threshold, bbox_inches='tight', format='png')
+					#fig.savefig('./z_floodfill_testruns/8d_test_threshold_%d.png' % threshold, bbox_inches='tight', format='png')
+					#fig.savefig('./floodfill_testruns/8d_test_threshold_%d.png' % threshold, bbox_inches='tight', format='png')
+
+					im = Image.fromarray(flooded_png)
+					im.save('./floodfill_testruns/8d_test_threshold_%d.png' % threshold)
+
 					print('.', flush=True)
 
 
@@ -49,18 +59,18 @@ class Floodfill:
 					img.close()
 
 
-	def within_threshold(x, target, threshold):
+	def within_threshold(self, x, target, threshold):
 		"""
 		within_threshold checks whether cell is within the target_color 
 		and the specified threshold bands
 		"""
 		return x > (target - threshold) and x < (target + threshold)
 
-	def within_image(x, y, shape):
+	def within_image(self, x, y, shape):
 		return x >= 0 and x < shape[0] and y >= 0 and y < shape[1]
 
 
-	def flood_iterative(image, xy, target_color, replacement_color, threshold):
+	def flood_iterative(self, image, xy, target_color, replacement_color, threshold):
 		"""
 		Args:
 			image (np.array): image 
@@ -77,7 +87,7 @@ class Floodfill:
 
 		if target_color == replacement_color:	# already the specified replacement_color 
 			return
-		elif not Floodfill.within_threshold(image[x,y], target_color, threshold):	# not the target color we want
+		elif not self.within_threshold(image[x,y], target_color, threshold):	# not the target color we want
 			return	
 		else:
 			init_target_color = image[x,y]	# set initial target color
@@ -105,8 +115,8 @@ class Floodfill:
 				x = loc[0]
 				y = loc[1]
 				
-				if Floodfill.within_image(x, y, image.shape):
-					if Floodfill.within_threshold(image[x,y], init_target_color, threshold):	# replace color if within target threshold
+				if self.within_image(x, y, image.shape):
+					if self.within_threshold(image[x,y], init_target_color, threshold):	# replace color if within target threshold
 						image[x,y] = replacement_color
 				
 					# add neighbors to the queue
@@ -119,10 +129,11 @@ class Floodfill:
 					sq.put((x,y+1))
 					sq.put((x,y-1))
 
+		self.png_data = image
 		return image
 
 
-	def flood(image, xy, target_color, replacement_color, threshold):
+	def flood(self, image, xy, target_color, replacement_color, threshold):
 		"""
 		flood performs a flood-fill operation on the specified start location in 
 		the given image, replacing the target_color cells with replacement_color 
@@ -144,17 +155,25 @@ class Floodfill:
 			return
 		elif x < 0 or x >= image.shape[0] or y < 0 or y >= image.shape[1]:
 			return
-		elif Floodfill.within_threshold(image[x, y], target_color, threshold):
+		elif self.within_threshold(image[x, y], target_color, threshold):
 			image[x, y] = replacement_color
-			Floodfill.flood(image, (x+1,y), target_color, replacement_color, threshold)	
-			Floodfill.flood(image, (x-1,y), target_color, replacement_color, threshold)	
-			Floodfill.flood(image, (x,y+1), target_color, replacement_color, threshold)	
-			Floodfill.flood(image, (x,y-1), target_color, replacement_color, threshold)	
+			self.flood(image, (x+1,y), target_color, replacement_color, threshold)	
+			self.flood(image, (x-1,y), target_color, replacement_color, threshold)	
+			self.flood(image, (x,y+1), target_color, replacement_color, threshold)	
+			self.flood(image, (x,y-1), target_color, replacement_color, threshold)	
 		else:
 			return
 
-	def write_to_png(image):
+	def write_to_png(self, filename=None):
+		from scipy.misc import toimage
 		print('writing to PNG')
+
+		if filename == None: filename == self.name + "_flooded.png"
+
+		im = toimage(self.png_data)
+		im.save(filename)
+
+		
 
 class SetQueue:
 
@@ -177,7 +196,3 @@ class SetQueue:
 		self.setqueue_set = set()
 		self.setqueue_queue = Queue()
 		self.size = 0
-
-	
-
-
