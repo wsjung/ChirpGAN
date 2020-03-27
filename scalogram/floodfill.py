@@ -20,8 +20,8 @@ class Floodfill:
 				plt.show()
 				"""
 				#f.savefig('./floodfill_testruns/orig.png', bbox_inches='tight')
-				img.save('./floodfill_testruns/orig.png')
-				img.close()
+				# img.save('./floodfill_testruns/orig.png')
+				#img.close()
 				#plt.close(f)
 
 
@@ -42,21 +42,21 @@ class Floodfill:
 
 
 					# save bucket filled image
-					fig = plt.figure(figsize=(10,10))
-					plt.imshow(flooded_png, cmap='inferno')
-					print('saving file..', end='', flush=True)
+					# fig = plt.figure(figsize=(10,10))
+					# plt.imshow(flooded_png, cmap='inferno')
+					# print('saving file..', end='', flush=True)
 					#fig.savefig('./z_floodfill_testruns/8d_test_threshold_%d.png' % threshold, bbox_inches='tight', format='png')
 					#fig.savefig('./floodfill_testruns/8d_test_threshold_%d.png' % threshold, bbox_inches='tight', format='png')
 
-					im = Image.fromarray(flooded_png)
-					im.save('./floodfill_testruns/8d_test_threshold_%d.png' % threshold)
+					# im = Image.fromarray(flooded_png)
+					# im.save('./floodfill_testruns/8d_test_threshold_%d.png' % threshold)
 
-					print('.', flush=True)
+					# print('.', flush=True)
 
 
 					# close figure and image
-					plt.close(fig)
-					img.close()
+					# plt.close(fig)
+					# img.close()
 
 
 	def within_threshold(self, x, target, threshold):
@@ -172,6 +172,7 @@ class Floodfill:
 
 		im = toimage(self.png_data)
 		im.save(filename)
+		im.close()
 
 		
 

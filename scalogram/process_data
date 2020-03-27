@@ -45,7 +45,9 @@ for f in os.listdir(wav_dir):
 
         ### remove original spliced .wav file
         os.remove(wavname)
-        print('##### Original .wav files deleted')
+
+print('##### Original .wav files deleted')
+notify.send('Original wav files compression complete')
 
 
 
