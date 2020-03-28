@@ -35,7 +35,7 @@ class Floodfill:
 
 					#flooded_png = Floodfill.flood_iterative(png_data[:,12000:20000], xy=(50,50), target_color=255, replacement_color=0, threshold=threshold)
 					flooded_png = self.flood_iterative(png_data, xy=(50,50), target_color=255, replacement_color=0, threshold=threshold)
-					
+					self.png_data = flooded_png
 
 					#print(flooded_png)
 					#print(flooded_png.dtype)
@@ -129,7 +129,7 @@ class Floodfill:
 					sq.put((x,y+1))
 					sq.put((x,y-1))
 
-		self.png_data = image
+		# self.png_data = image
 		return image
 
 
