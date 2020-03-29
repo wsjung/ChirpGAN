@@ -1,4 +1,5 @@
-import PySimpleGUI as sg
+from notify_run import Notify
 
-event, values = sg.Window('Select Audio Files').Layout([[sg.Input(key='_FILES_'), sg.FilesBrowse()], [sg.OK(), sg.Cancel()]]).Read()
-print(values['_FILES_'].split(';'))
+notify = Notify()
+notify.send('test message')
+

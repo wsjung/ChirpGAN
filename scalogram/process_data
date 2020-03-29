@@ -1,0 +1,211 @@
+from data_process_wav import DataSplitter
+from scalogram import Scalogram
+from floodfill import Floodfill
+import sys
+import os
+from notify_run import Notify
+import gzip
+import shutil
+import glob
+
+if len(sys.argv) < 4:
+    command = sys.argv[0]
+    print('Usage:', command, '<wav-directory> <wav-save-directory> <png-save-directory>', file=sys.stderr)
+    exit(-1)
+
+
+wav_dir = sys.argv[1]
+wav_save_dir = sys.argv[2]
+png_save_dir = sys.argv[3]
+
+notify = Notify()
+
+print('###### Files found in %s ######' % wav_dir)
+print('###### Saving split files to %s ######' % wav_save_dir)
+
+data_splitter = DataSplitter(130, wav_dir, wav_save_dir)
+
+print('###### Complete ######')
+
+### compress original .wav files since they are so big
+print('##### Compressing original .wav files')
+
+for f in os.listdir(wav_dir):
+    if f.endswith('.wav'):
+        
+        wavname = os.path.join(wav_dir, f)
+
+        print('compressing wav file %s' % wavname)
+
+        with open(wavname, 'rb') as f_in:
+            with gzip.open('%s.gz' % wavname, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        print('compression complete')
+
+        ### remove original spliced .wav file
+        os.remove(wavname)
+
+print('##### Original .wav files deleted')
+notify.send('Original wav files compression complete')
+
+
+
+notify.send('Data Splitting complete')
+
+
+################################################################################
+### makescal on each wav file --> save each .scal file in separate directory ###
+################################################################################
+"""
+print('##### COMMENCING WAV --> SCAL CONVERSION #####')
+
+listwavs = os.listdir(wav_save_dir)
+totalwavs = len(glob.glob1(wav_save_dir, '*.wav'))
+i=1
+
+for f in listwavs:
+    if f.endswith('.wav'):
+
+        ### report progress
+        print('(%d/%d)' % (i, totalwavs))
+        notify.send('.wav -> .scal progress (%d/%d)' % (i, totalwavs))
+
+        wavname = os.path.join(wav_save_dir, f)                    # .wav file with full path
+        fname = f[:f.rfind('.')]                                    # remove .wav extension
+        scalname = os.path.join(png_save_dir, '%s.scal' % fname)    # .scal file with full path
+
+        ### check for already existing .scal file
+        if os.path.exists(scalname):
+            print("SCAL file %s already exists" % scalname)
+        else:
+            print("Creating SCAL file from \"" + f + "\".")
+            scal = Scalogram(wavname)
+            scal.write_to_file(filename=scalname)
+            print("   ", scal)
+            
+            ### compress .wav file once converted to .scal file
+            print('compressing wav file %s' % wavname)
+
+            with open(wavname, 'rb') as f_in:
+                with gzip.open('%s.gz' % wavname, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+
+            print('compression complete')
+
+            ### remove original spliced .wav file
+            os.remove(wavname)
+            print('splied .wav files deleted')
+        
+        i+=1
+
+
+print('##### WAV --> SCAL COMPELTE #####')
+notify.send('Wav -> scal transformation complete')
+"""
+
+################################################################################
+### makescal on each scal file --> save each .png file in separate directory ###
+################################################################################
+
+print('##### COMMENCING SCAL --> PNG CONVERSION #####')
+
+
+listscals = os.listdir(png_save_dir)
+totalscals = len(glob.glob1(png_save_dir, '*.scal'))
+i=1
+
+for f in os.listdir(png_save_dir):
+    if f.endswith('.scal'):
+
+        ### report progress
+        print('(%d/%d)' % (i, totalscals))
+        notify.send('.scal -> .png progress (%d/%d)' % (i, totalscals))
+
+        scalname = os.path.join(png_save_dir, f)                # .scal file with full path
+        fname = f[:f.rfind('.')]                                # remove .scal extension
+        pngname = os.path.join(png_save_dir, '%s.png' % fname)  # .png file with full path
+
+        ### check for already existing .png file
+        if os.path.exists(pngname):
+            print("PNG file %s already exists" % pngname)
+        else:
+            print("Info on SCAL file \"" +f+ "\":")
+            scal = Scalogram(scalname)
+            print("   ", scal)
+            argmax = scal.argmax()
+            argmin = scal.argmin()
+            print("   max:", scal[argmax[0]][argmax[1]], "(t:", argmax[0], ", f:", argmax[1], ")")
+            print("   min:", scal[argmin[0]][argmin[1]], "(t:", argmin[0], ", f:", argmin[1], ")")
+            print("   mean:", scal.mean())
+            scal.write_to_png(filename=pngname)
+
+            ### compress .scal file once converted to .png
+            print('compressing scal file %s' % scalname)
+
+            with open(scalname, 'rb') as f_in:
+                with gzip.open('%s.gz' % scalname, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            
+            print('compression complete')
+
+            ### remove original .scal file
+            os.remove(scalname)
+            print('.scal files deleted')
+
+        i+=1
+
+
+print('##### SCAL -> PNG #####')
+notify.send('scal -> png conversion complete')
+
+
+
+######################################################
+### floodpng on each png file --> flooded png file ###
+######################################################
+
+print('##### FLOODING PNG FILES #####')
+
+
+listpngs = os.listdir(png_save_dir)
+totalpngs = len(glob.glob1(png_save_dir, '*.png'))
+i=0
+
+flood_dir = os.path.join(png_save_dir, 'flood')
+
+# create flooded png directory if doesn't exist
+if not os.path.isdir(flood_dir):
+    os.mkdir(flood_dir)
+
+
+for png in listpngs:
+    if png.endswith('.png'):
+
+        ### report progress
+        print('(%d/%d)' % (i, totalpngs))
+        notify.send('flooding .png progress (%d/%d)' % (i, totalpngs))
+
+        pngname = os.path.join(png_save_dir, png)                           # .png file with full path
+        fname = png[:png.rfind('.')]                                        # remove .png extension
+        floodpngname = os.path.join(flood_dir, '%s_flooded.png' % fname)    # flooded .png file with full path
+
+        ### check for already existing flooded .png file
+        if os.path.exists(floodpngname):
+            print("FLOODED PNG file %s already exists" % floodpngname)
+        else:
+            print('Info on PNG file \'' + png + '\':')
+            png = Floodfill(pngname)
+            png.write_to_png(filename=floodpngname);
+
+        i+=1
+
+print('##### PNG FILE FLOODED #####')
+notify.send('png files flooded')
+
+
+
+#############################################################
+### Notify myself using qr code notif when process donezo ###
+#############################################################
+notify.send('ALL DONE')
