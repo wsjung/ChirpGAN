@@ -20,26 +20,58 @@ png_save_dir = sys.argv[3]
 
 notify = Notify()
 
+
+#############################
+### decompress .wav files ###
+#############################
+"""
+print('### decompressing .wav files for splitting ###')
+for f in os.listdir(wav_dir):
+    if f.endswith('.wav.gz'):
+        wavname = os.path.join(wav_dir, f)
+        print('decompressing wav file %s' % f)
+        fp = open("%s" % wavname[:-3], "wb")
+        with open(wavname, 'rb') as f_in:
+            gzdata = f_in.read()
+        fp.write(gzdata)
+        fp.close()
+print('### decompressed all .wav files ###')
+"""
+
+
+"""
+#############################
+### actual data splitting ###
+#############################
 print('###### Files found in %s ######' % wav_dir)
 print('###### Saving split files to %s ######' % wav_save_dir)
 
 data_splitter = DataSplitter(130, wav_dir, wav_save_dir)
 
 print('###### Complete ######')
+"""
 
-### compress original .wav files since they are so big
-print('##### Compressing original .wav files')
+##########################################################
+### compress original .wav files since they are so big ###
+##########################################################
+"""
+print('##### Compressing original .wav files to .mp3')
 
 for f in os.listdir(wav_dir):
     if f.endswith('.wav'):
         
         wavname = os.path.join(wav_dir, f)
+        mp3name = wavname[:-4] + '.mp3'
 
         print('compressing wav file %s' % wavname)
+        
+        os.system('ffmpeg -i %s %s' % (wavname, mp3name))
 
-        with open(wavname, 'rb') as f_in:
-            with gzip.open('%s.gz' % wavname, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        
+        #with open(wavname, 'rb') as f_in:
+        #    with gzip.open('%s.gz' % wavname, 'wb') as f_out:
+        #        shutil.copyfileobj(f_in, f_out)
+        
 
         print('compression complete')
 
@@ -50,64 +82,84 @@ print('##### Original .wav files deleted')
 notify.send('Original wav files compression complete')
 
 
-
 notify.send('Data Splitting complete')
-
+"""
 
 ################################################################################
 ### makescal on each wav file --> save each .scal file in separate directory ###
 ################################################################################
-"""
 print('##### COMMENCING WAV --> SCAL CONVERSION #####')
 
 listwavs = os.listdir(wav_save_dir)
 totalwavs = len(glob.glob1(wav_save_dir, '*.wav'))
 i=1
 
-for f in listwavs:
-    if f.endswith('.wav'):
-
-        ### report progress
-        print('(%d/%d)' % (i, totalwavs))
-        notify.send('.wav -> .scal progress (%d/%d)' % (i, totalwavs))
-
-        wavname = os.path.join(wav_save_dir, f)                    # .wav file with full path
-        fname = f[:f.rfind('.')]                                    # remove .wav extension
-        scalname = os.path.join(png_save_dir, '%s.scal' % fname)    # .scal file with full path
-
-        ### check for already existing .scal file
-        if os.path.exists(scalname):
-            print("SCAL file %s already exists" % scalname)
-        else:
-            print("Creating SCAL file from \"" + f + "\".")
-            scal = Scalogram(wavname)
-            scal.write_to_file(filename=scalname)
-            print("   ", scal)
+try:
+    for f in listwavs:
+        if f.endswith('.wav'):
+    
+            ### report progress
+            print('(%d/%d)' % (i, totalwavs))
+            notify.send('.wav -> .scal progress (%d/%d)' % (i, totalwavs))
+    
+            ################################################################
+            wavname = os.path.join(wav_save_dir, f)                     # .wav file with full path
+            fname = f[:f.rfind('.')]                                    # remove .wav extension
+            mp3name = os.path.join(wav_save_dir, fname) + '.mp3'        # mp3 name for conversion
+            scalname = os.path.join(png_save_dir, '%s.scal' % fname)    # .scal file with full path
+            scalgzname = scalname + '.gz'                               # .scal.gz file
+    
+            ################################################################
+            ### check for already existing .scal file
+            if os.path.exists(scalname) or os.path.exists(scalgzname):
+                print("SCAL file or gz %s already exists" % scalname)
+            else:
+                ################################################################
+                ### create the scal file
+                print("Creating SCAL file from \"" + f + "\".")
+                scal = Scalogram(wavname)
+                scal.write_to_file(filename=scalname)
+                print("   ", scal)
+    
+                ################################################################
+                ## compress the scal file automatically to conserve disk space
+                with open(scalname, 'rb') as f_in:
+                    with gzip.open(scalgzname, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                ## delete original scal file
+                os.remove(scalname)
+    
+                
+                ################################################################
+                ### compress .wav file once converted to .scal file
+                ########### COMPRESSION VIA CONVERTING TO MP3
+                print('compressing wav file %s to %s' % (wavname, mp3name))
+    
+                """
+                with open(wavname, 'rb') as f_in:
+                    with gzip.open('%s.gz' % wavname, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                """
+                ################################################################
+                os.system('ffmpeg -i %s %s' % (wavname, mp3name))
+                print('compression complete')
+    
+                ### remove original spliced .wav file
+                os.remove(wavname)
+                print('spliced .wav files deleted')
             
-            ### compress .wav file once converted to .scal file
-            print('compressing wav file %s' % wavname)
-
-            with open(wavname, 'rb') as f_in:
-                with gzip.open('%s.gz' % wavname, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-
-            print('compression complete')
-
-            ### remove original spliced .wav file
-            os.remove(wavname)
-            print('splied .wav files deleted')
-        
-        i+=1
-
+            i+=1
+except:
+    print('################## ERROR DURING WAV -> SCAL CONVERSION ################')
+    notify.send('ERROR: error occurred during wav -> scal conversion') 
 
 print('##### WAV --> SCAL COMPELTE #####')
 notify.send('Wav -> scal transformation complete')
-"""
 
 ################################################################################
 ### makescal on each scal file --> save each .png file in separate directory ###
 ################################################################################
-
+"""
 print('##### COMMENCING SCAL --> PNG CONVERSION #####')
 
 
@@ -158,13 +210,13 @@ for f in os.listdir(png_save_dir):
 
 print('##### SCAL -> PNG #####')
 notify.send('scal -> png conversion complete')
-
+"""
 
 
 ######################################################
 ### floodpng on each png file --> flooded png file ###
 ######################################################
-
+"""
 print('##### FLOODING PNG FILES #####')
 
 
@@ -202,7 +254,7 @@ for png in listpngs:
 
 print('##### PNG FILE FLOODED #####')
 notify.send('png files flooded')
-
+"""
 
 
 #############################################################
