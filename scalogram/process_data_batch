@@ -7,11 +7,21 @@ from notify_run import Notify
 import gzip
 import shutil
 import glob
+import logging
+
+
+LOGFILE = 'birdgan.log'
+
+### logging ###
+logging.basicConfig(filename=LOGFILE, level=logging.INFO) # log
+logging.info('Started') # log
 
 if len(sys.argv) < 4:
     command = sys.argv[0]
     print('Usage:', command, '<wav-directory> <wav-save-directory> <png-save-directory>', file=sys.stderr)
+    logging.warninig('wrong command usage') # log
     exit(-1)
+logging.info('program called')
 
 # prelims 
 wav_dir = sys.argv[1]
@@ -23,27 +33,37 @@ if not os.path.isdir(flood_dir):
     os.mkdir(flood_dir)
 
 notify = Notify()
+logging.info('notify-run init')
 
 print('wav_dir = %s' % wav_dir)
 print('wav_save_dir = %s' % wav_save_dir)
 print('png_save_dir = %s' % png_save_dir)
 print('flood_dir = %s' % flood_dir)
+# logging
+logging.info('wav_dir = %s' % wav_dir)
+logging.info('wav_save_dir = %s' % wav_save_dir)
+logging.info('png_save_dir = %s' % png_save_dir)
+logging.info('flood_dir = %s' % flood_dir)
+
 
 # print('###### Files found in %s ######' % wav_dir)
-
 # print('##### batch size: %d' % batch_size)
 # notify.send('batch size: %d' % batch_size)
 
-
+"""
 print('###### Saving split files to %s ######' % wav_save_dir)
+logging.info('splitting wav files') # log
 data_splitter = DataSplitter(130, wav_dir, wav_save_dir)
-
+logging.info('wav file splitting complete') # log
+"""
 
 ###########################################################
 ### run split wav --> scal --> png --> flood in batches ###
 ###########################################################
 
 # notify.send('running batches of size %d' % batch_size)
+
+logging.info('starting full conversion') # log
 
 listwavs = os.listdir(wav_save_dir)
 totalwavs = len(glob.glob1(wav_save_dir, '*.wav'))
@@ -60,6 +80,7 @@ try:
             ### report progress
             print('(%d/%d)' % (i, totalwavs))
             notify.send('(%d/%d)' % (i, totalwavs))
+            logging.info('(%d/%d)' % (i, totalwavs)) # log
 
             wavname = os.path.join(wav_save_dir, splitwav)              # .wav file with full path
             fname = splitwav[:splitwav.rfind('.')]                      # remove .wav extension
@@ -67,22 +88,28 @@ try:
             scalgzname = scalname + '.gz'                               # .scal.gz file
             mp3name = os.path.join(wav_save_dir, fname + '.mp3')        # .mp3 name
 
+            logging.info('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) # log
+
             ####################
             ### wav --> scal ###
             ####################
             
             print('\n#####starting wav -> scal transformation')
+            logging.info('\n#####starting wav -> scal transformation')
 
             ### check for already existing .scal file
             if os.path.exists(scalname) or os.path.exists(scalgzname):
                 print("SCAL file or gz %s already exists" % scalname)
+                logging.info("SCAL file or gz %s already exists" % scalname)
             else:
                 ################################################################
                 ### create the scal file
+                logging.info('creating scal file') # log
                 print("Creating SCAL file from \"" + wavname + "\".")
                 scal = Scalogram(wavname)
                 scal.write_to_file(filename=scalname)
                 print("   ", scal)
+                logging.info('scalfile created') # log
 
                 ################################################################
                 ## compress the scal file automatically to conserve disk space
@@ -95,8 +122,10 @@ try:
                 ################################################################
                 ### compress .wav file once converted to .scal file
                 print('compressing wav file %s' % wavname)
+                logging.info('compressing wav file %s' % wavname) # log
                 os.system('ffmpeg -i %s %s' % (wavname, mp3name))
                 print('wav -> mp3 compression complete')
+                logging.info('wav -> mp3 compression complete') # log
 
                 
             
@@ -108,15 +137,20 @@ try:
 
             print('\n##### starting scal -> png transformation')
             print(pngname)
+            logging.info('starting scal -> png transformation') # log
+            logging.info('pngname: %s' % pngname) # log
+
 
             ### check for already existing .png file
             if os.path.exists(pngname):
                 print("PNG file %s already exists" % pngname)
+                logging.info("PNG file %s already exists" % pngname) # log
             else:
                 ################################################################
                 ### load the correct scal file (raw or gz)
                 isScalGz = os.path.exists(scalgzname)
                 if isScalGz:
+                    logging.warning('loading gz scal file') # log
                     ### decompress .scal.gz
                     with open(scalgzname, 'rb') as f_in:
                         with gzip.open(scalname, 'wb') as f_out:
@@ -128,6 +162,7 @@ try:
 
                 ################################################################
                 ### create the png file
+                logging.info('creating png file') # log
                 print("Info on SCAL file \"" +sname+ "\":")
                 scal = Scalogram(sname)
                 print('loaded scal')
@@ -138,8 +173,9 @@ try:
                 #print("   min:", scal[argmin[0]][argmin[1]], "(t:", argmin[0], ", f:", argmin[1], ")")
                 #print("   mean:", scal.mean())
                 scal.write_to_png(filename=pngname)
+                
                 print('wrote')
-
+                logging.info('created pngfile') # log
                 notify.send('created pngfile')
 
             #################
@@ -149,16 +185,21 @@ try:
             floodpngname = os.path.join(flood_dir, '%s_flooded.png' % fname)    # flooded .png file with full path
             print('\n##### starting flooding png')
             print(floodpngname)
+            logging.info('starting png flooding') # log
+            logging.info('floodpngname: %s' % floodpngname) # log
 
             ### check for already existing flooded .png file
             if os.path.exists(floodpngname):
                 print("FLOODED PNG file %s already exists" % floodpngname)
+                logging.warning("FLOODED PNG file %s already exists" % floodpngname) # log
             else:
                 print('Info on PNG file \'' + pngname + '\':')
                 png = Floodfill(pngname)
                 print('flooded')
+                logging.info('flooded') # log
                 png.write_to_png(filename=floodpngname);
-                print('writing')
+                print('wrote')
+                logging.info('wrote') # log
 
             notify.send('pngfile flooded')
 
@@ -169,22 +210,27 @@ try:
 
             ################################################################
             ### remove scal file
+            logging.info('removing scalfile: %s' % scalname) # log
             print(scalname)
             os.remove(scalname)
             print('.scal file deleted')
+            logging.info('%s deleted' % scalname) # log
 
             #################################################################
             ### remove original spliced .wav file
+            logging.info('removing wav file: %s' % wavname) # log
             os.remove(wavname)
-            print('spliced .wav files deleted')
+            print('spliced .wav file deleted')
+            logging.info('spliced .wav file %s deleted' % wavname) # log
 
             i+=1
 
 except:
     print('################## ERROR DURING WAV -> SCAL -> PNG -> FLOOD CONVERSION ################')
-    notify.send('ERROR: error occurred during wav -> scal -> png -> flood conversion') 
-
-
+    logging.critical('Program exception --> aborting')
+    notify.send('ERROR: error occurred during wav -> scal -> png -> flood conversion\nCheck logfile %s' % LOGFILE)
+    exit(-1)
+    
 #############################################################
 ### Notify myself using qr code notif when process donezo ###
 #############################################################
