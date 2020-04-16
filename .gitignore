@@ -1,4 +1,6 @@
 papers/
+png_scalogram/
+wav_transform/
 scalogram/*.scal
 scalogram/*.wav
 scalogram/*.png
@@ -6,3 +8,5 @@ scalogram/*.png
 dlwavfiles/
 credentials.json
 token.pickle
+
+
