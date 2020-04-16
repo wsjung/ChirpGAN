@@ -1,6 +1,6 @@
-from data_process_wav import DataSplitter
-from scalogram import Scalogram
-from floodfill import Floodfill
+from scalogram.data_process_wav import DataSplitter
+from scalogram.scalogram import Scalogram
+from scalogram.floodfill import Floodfill
 import sys
 import os
 import gzip
@@ -27,9 +27,8 @@ class WavPipeline():
 
 
         print('SPLITTING\n')
-        split
         if (split_wav):
-            wavPipeline.split(wav_dir, wav_save_dir)
+            WavPipeline.split(wav_dir, wav_save_dir)
 
 
 
@@ -56,7 +55,7 @@ class WavPipeline():
                     print('WAV TO SCL\n')
                     WavPipeline.wavToScl(wavname, scalname, scalgzname, mp3name)
                     print('SCL TO PNG\n')
-                    WavPipeline.scalToPng(fname,scalname,scalgzname)
+                    WavPipeline.scalToPng(fname,scalname,scalgzname, png_save_dir)
                     print('PNG FLOOD FILL\n')
                     WavPipeline.flood_png(fname, png_save_dir)
 
@@ -100,7 +99,9 @@ class WavPipeline():
     ####################
     ### scal --> png ###
     ####################
-    def scalToPng(fname,scalname,scalgzname):
+    def scalToPng(fname,scalname,scalgzname, png_save_dir):
+
+        print('STARTING SCL TO PNG')
 
         pngname = os.path.join(png_save_dir, '%s.png' % fname)  # .png file with full path
 

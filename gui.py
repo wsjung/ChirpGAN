@@ -5,9 +5,9 @@ import gzip
 import shutil
 import glob
 
-from scalogram.floodfill import Floodfill
-from scalogram.scalogram import Scalogram
-from scalogram import data_process_wav as pwave
+
+from scalogram.pipeline import WavPipeline
+
 
 
 #sg.theme('DarkAmber')	# color
@@ -61,7 +61,11 @@ while True:
 				if not os.path.exists('./png_scalogram'):
 					os.mkdir('./png_scalogram')
 
-				path = './png_scalogram'
+				if not os.path.exists('./wav_transform'):
+					os.mkdir('./wav_transform')
+
+				png_sav_dir = './png_scalogram'
+				wav_sav_dir = './wav_transform'
 
 
 
@@ -70,7 +74,7 @@ while True:
 				### PASS FILES TO DATA PIPELINE                         ###
 				###########################################################
 
-				
+				WavPipeline.processPip(wav_dir,wav_sav_dir,png_sav_dir, split_wav = True)
 
 
 
