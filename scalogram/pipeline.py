@@ -51,7 +51,6 @@ class WavPipeline():
                                         
                     print('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
 
-
                     print('WAV TO SCL\n')
                     WavPipeline.wavToScl(wavname, scalname, scalgzname, mp3name)
                     print('SCL TO PNG\n')
