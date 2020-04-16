@@ -25,9 +25,11 @@ class WavPipeline():
 
         print('starting full conversion') # log
 
-        #split
-        #if (split_wav):
-            #WavPipeline.split(wav_dir, wav_save_dir)
+
+        print('SPLITTING\n')
+        split
+        if (split_wav):
+            wavPipeline.split(wav_dir, wav_save_dir)
 
 
 
@@ -51,12 +53,11 @@ class WavPipeline():
                     print('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
 
 
-                    print('SPLITTING')
-
-                    #WavPipeline.wavToScl(wavname, scalname, scalgzname, mp3name)
-
+                    print('WAV TO SCL\n')
+                    WavPipeline.wavToScl(wavname, scalname, scalgzname, mp3name)
+                    print('SCL TO PNG\n')
                     WavPipeline.scalToPng(fname,scalname,scalgzname)
-
+                    print('PNG FLOOD FILL\n')
                     WavPipeline.flood_png(fname, png_save_dir)
 
                     i+=1
@@ -169,7 +170,7 @@ class WavPipeline():
             print('wrote')
 
 
-
+"""
 #defaults
 wav_dir = "../recordings"
 wav_save_dir = "../wav_transform"
@@ -188,4 +189,5 @@ pngname = '../png_scalogram/ml-american-robin0.png'
 #WavPipeline.wavToScl(wavname,scalname,scalgzname,mp3name)
 #WavPipeline.flood_png(fname,pngname, png_save_dir)
 
-WavPipeline.processPip(wav_dir,wav_save_dir,png_save_dir)
+#WavPipeline.processPip(wav_dir,wav_save_dir,png_save_dir)
+"""
