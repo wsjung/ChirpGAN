@@ -166,7 +166,7 @@ class WavPipeline():
             print('Info on PNG file \'' + pngname + '\':')
             png = Floodfill(pngname)
             print('flooded')
-            png.write_to_png(filename=floodpngname);
+            png.write_to_png(filename=floodpngname)
             print('wrote')
 
 

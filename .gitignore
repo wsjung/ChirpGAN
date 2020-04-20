@@ -9,5 +9,5 @@ scalogram/*.png
 dlwavfiles/
 credentials.json
 token.pickle
-
+recordings/
 
