@@ -42,8 +42,8 @@ class DataSplitter:
 
                 print('compressing wav file')
                 os.system('ffmpeg -i %s %s.mp3' % (fwav, os.path.join(wav_dir, fname)))
-                print('deleting wav file')
-                os.system('rm %s' % fwav)
+                #print('deleting wav file')
+                #os.system('rm %s' % fwav)
 
 
         # print('### DONE ###')
