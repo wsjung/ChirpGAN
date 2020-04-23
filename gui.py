@@ -76,6 +76,10 @@ while True:
 
 				WavPipeline.processPip(wav_dir,wav_sav_dir,png_sav_dir, split_wav = True)
 
+				# TODO: SEPARATELY CALL EACH FUNCTION IN THE PIPELINE
+				# TODO: UPDATE THE GUI AND THE USER ON THE PROCESS OF EACH FUNCTION CALL
+				# TODO: UPSCALE THE GUI SIZE SO IT IS NOT TIGHTLY FIT TO THE CURRENT GUI ELEMENTS -> MAKE IT MORE USER-FRIENDLY AND NAVIGABLE
+
 
 
 				if ld_event in (None, 'Cancel'):
@@ -85,8 +89,6 @@ while True:
 						break
 
 
-#TODO: allow ability to select and load multiple files
-#TODO: 
 
 
 
