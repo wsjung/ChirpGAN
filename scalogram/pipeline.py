@@ -6,13 +6,22 @@ import os
 import gzip
 import shutil
 import glob
+import time
 
 class WavPipeline():
 
     ###########################################################
+    # g  et total file size of all files for runtime estimate #
+    ###########################################################
+   # def file_sizes(dir, ext):
+
+    ###########################################################
     ### rsplit wav files                                    ###
     ###########################################################
+
+
     def split(wav_dir,wav_save_dir):
+
         data_splitter = DataSplitter(130, wav_dir, wav_save_dir)
 
 
@@ -27,14 +36,30 @@ class WavPipeline():
 
 
         print('SPLITTING\n')
+
+        org_wav = os.stat(wav_dir + "/test.wav")
+        print(f'File size in Bytes is {org_wav.st_size}')
+
+
+        start = time.time()
         if (split_wav):
             WavPipeline.split(wav_dir, wav_save_dir)
+        stop = time.time()
 
-
+        time_split= stop-start
 
         listwavs = os.listdir(wav_save_dir)
         totalwavs = len(glob.glob1(wav_save_dir, '*.wav'))
         i=1
+
+        size_wav = 0
+        size_scl = 0
+        size_png = 0
+
+
+        time_wavToScl = 0
+        time_sclToPng = 0
+        time_flood = 0
 
         try:
             for splitwav in listwavs:
@@ -52,17 +77,50 @@ class WavPipeline():
                     print('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
 
                     print('WAV TO SCL\n')
+
+                    wav_s = os.stat(wavname)
+                    size_wav += wav_s.st_size
+
+
+                    start = time.time()
                     WavPipeline.wavToScl(wavname, scalname, scalgzname, mp3name)
+                    stop =  time.time()
+
+                    time_wavToScl += (stop-start)    
+
                     print('SCL TO PNG\n')
+
+                    scl_s = os.stat(scalname)
+                    size_scl += scl_s.st_size
+                    
+                    start = time.time()
                     WavPipeline.scalToPng(fname,scalname,scalgzname, png_save_dir)
+                    stop = time.time()
+
+                    time_sclToPng += (stop-start)
+
                     print('PNG FLOOD FILL\n')
+
+                    pngname = os.path.join(png_save_dir, '%s.png' % fname)
+
+                    png_s = os.stat(pngname)
+                    size_png += png_s.st_size
+
+                    start = time.time()
                     WavPipeline.flood_png(fname, png_save_dir)
+                    stop = time.time()
+
+                    time_flood += (stop-start)
 
                     i+=1
 
         except:
             print('################## ERROR DURING DATA PROCESSING ################')
             exit(-1)
+
+
+        print("SIZES: WAV:%d WAV_s:%d  SCL:%d PNG%d\n", (org_wav.st_size, size_wav, size_scl, size_png))
+        print("TIME: WAV:%d WAV_s:%d  SCL:%d PNG%d\n", (time_split, time_wavToScl, time_sclToPng, time_flood))
 
 
     ####################
@@ -146,6 +204,9 @@ class WavPipeline():
     #################
     def flood_png(fname, png_save_dir):
 
+
+        print("SEOIFJOISENFISENGNSEIOGNSEOIGNOISENGOINSEGIO")
+
         pngname = os.path.join(png_save_dir, '%s.png' % fname)
 
         flood_dir = os.path.join(png_save_dir, 'flood')
@@ -188,6 +249,5 @@ pngname = '../png_scalogram/ml-american-robin0.png'
 
 #WavPipeline.wavToScl(wavname,scalname,scalgzname,mp3name)
 #WavPipeline.flood_png(fname,pngname, png_save_dir)
-
-#WavPipeline.processPip(wav_dir,wav_save_dir,png_save_dir)
+WavPipeline.processPip(wav_dir,wav_save_dir,png_save_dir)
 """
