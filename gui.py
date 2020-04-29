@@ -17,7 +17,7 @@ import threading
 # CONFIGS VARS #
 ################
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 
 #sg.theme('DarkAmber')	# color
@@ -62,8 +62,9 @@ def create_prog_bar_popup(debug):
 
 
 # creates data loading popup window based on boolean to render warning message
-def create_load_data_popup(warning=False):
-	warn_text = [sg.Text(text='  *Make sure folder only contains .wav files.', text_color='#d9534f')]
+def create_load_data_popup(wav_warning=False, empty_warning=False):
+	wav_warn_text = [sg.Text(text='  *Make sure folder only contains .wav files.', text_color='#d9534f')]
+	empty_warn_text = [sg.Text(text='  *Please select a folder.', text_color='#d9534f')]
 
 	load_data_layout = [
 		[sg.Text('Folder of bird vocalization files to load: ')],
@@ -71,8 +72,11 @@ def create_load_data_popup(warning=False):
 		[sg.OK(), sg.Cancel()]
 	]
 
-	if warning:
-		load_data_layout.insert(1, warn_text)
+	if wav_warning:
+		load_data_layout.insert(1, wav_warn_text)
+	
+	if empty_warning:
+		load_data_layout.insert(1, empty_warn_text)
 
 	return sg.Window('Select folder containing audio files').Layout(load_data_layout)
 
@@ -84,7 +88,7 @@ def create_load_data_popup(warning=False):
 ### FUNCTION TO BE MULTITHREADED ###
 ####################################
 
-def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, gui_queue):
+def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, debug, gui_queue):
 	"""
 	Args:
 		gui_queue: Queue to communicate back to GUI with messages
@@ -92,12 +96,13 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 	i=1
 
 	for splitwav in listwavs:
-		gui_queue.put("TEST")
-		gui_queue.put('file: ', splitwav)
+		if debug:
+			gui_queue.put("TEST")
+			gui_queue.put('file: ', splitwav)
 		if splitwav.endswith('.wav'):
 
 			### report progress
-			gui_queue.put('(%d/%d)' % (i, totalwavs))
+			if debug: gui_queue.put('(%d/%d)' % (i, totalwavs))
 			#track process
 			p = ((i-1)*3)
 
@@ -107,10 +112,10 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			scalgzname = scalname + '.gz'                               # .scal.gz file
 			mp3name = os.path.join(wave_sav_dir, fname + '.mp3')        # .mp3 name
 
-								
-			gui_queue.put('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
 
-			gui_queue.put('WAV TO SCL\n')
+			if debug:				
+				gui_queue.put('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
+				gui_queue.put('WAV TO SCL\n')
 
 			#wav_s = os.stat(wavname)
 			#size_wav += wav_s.st_size
@@ -126,7 +131,7 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			pg_window['proc_c'].update('(%d/%d)' % (p+1,(total_files*3)))
 			pg_window.read(timeout=100)
 
-			gui_queue.put('SCL TO PNG\n')
+			if debug: gui_queue.put('SCL TO PNG\n')
 
 			#scl_s = os.stat(scalname)
 			#size_scl += scl_s.st_size
@@ -141,7 +146,7 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			pg_window['proc_c'].update('(%d/%d)' % (p+2,(total_files*3)))
 			pg_window.read(timeout=10)
 
-			gui_queue.put('PNG FLOOD FILL\n')
+			if debug: gui_queue.put('PNG FLOOD FILL\n')
 
 			pngname = os.path.join(png_sav_dir , '%s.png' % fname)
 
@@ -157,8 +162,6 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			pg_window.read(timeout=100)
 
 			#time_flood += (stop-start)
-			
-			
 
 			progress_bar.UpdateBar(i)  
 			pg_window['file_c'].update('(%d/%d)' % (i,total_files))
@@ -189,22 +192,29 @@ while True:
 		#pop up load window
 
 		# boolean for showing warning message in load data layout
+		select_folder_warning = False
 		wav_only_warning = False
 
 		while True: 
-
-			load_data_popup = create_load_data_popup(wav_only_warning)
+			load_data_popup = create_load_data_popup(wav_only_warning, select_folder_warning)
 			ld_event, ld_values = load_data_popup.read()
 			#print('ld_event: %s\nld_values: %s' % (ld_event, ld_values))
 
 			if ld_event == 'Cancel':
 				load_data_popup.close()
 				break
-
-			if ld_event in ('OK'):
+		
+			if ld_event in ('OK') and ld_values['_FILES_']=='': # clicked OK without selecting folder
+				load_data_popup.close()
+				select_folder_warning = True
+			elif ld_event in ('OK'):
+				select_folder_warning = False
 				
 				# close load_data_popup
 				load_data_popup.close()
+
+				print(ld_values)
+
 
 				wave_dir = ld_values['_FILES_'].split(';')[0]
 
@@ -285,6 +295,7 @@ while True:
 					
 					pg_window = create_prog_bar_popup(DEBUG_MODE)
 					# create communicate queue if debug mode
+					gui_queue = None
 					if DEBUG_MODE: gui_queue = queue.Queue()
 
 					# pg_window = sg.Window('File Processing').Layout(pg_layout)
@@ -293,8 +304,8 @@ while True:
 
 					pg_window.read(timeout=10)
 
-					process_count.UpdateBar(0) 
-					progress_bar.UpdateBar(0) 
+					process_count.UpdateBar(0)
+					progress_bar.UpdateBar(0)
 
 					pg_window['file_c'].update('(0/%d)' % total_files)
 					pg_window['proc_c'].update('(0/%d)' % (total_files*3))
@@ -306,27 +317,29 @@ while True:
 						event, values = pg_window.read(timeout=100)
 
 						if event in (None, 'Exit', 'Cancel'):
+							print('CANCELLED, EXITING')
 							break
 						elif event.startswith('Start'):
 							try:
 								print('STARTING THREAD')
 								threading.Thread(target=main_op_thread, 
-													args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, gui_queue), 
+													args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, DEBUG_MODE, gui_queue), 
 													daemon=True).start()
 							except Exception as e:
 								print('Error starting work thread')
 						elif event == 'Check responsive':
 							print('GUI is responsive')
 
-						# check for incoming messages from thread\
-						try:
-							message = gui_queue.get_nowait()
-						except queue.Empty:
-							message = None
+						# check for incoming messages from thread
+						if DEBUG_MODE:
+							try:
+								message = gui_queue.get_nowait()
+							except queue.Empty:
+								message = None
 
-						# display message from queue
-						if message:
-							print(message)
+							# display message from queue
+							if message:
+								print(message)
 
 					pg_window.close()
 
