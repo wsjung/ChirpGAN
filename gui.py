@@ -6,24 +6,55 @@ import shutil
 import glob
 import time
 
-
 from scalogram.pipeline import WavPipeline
 
+################
+# CONFIGS VARS #
+################
+
+DEBUG_MODE = False
 
 
 #sg.theme('DarkAmber')	# color
 
-# basic window
 
+#####################################
+# FUNCTIONS FOR DYNAMIC GUI WINDOWS #
+#####################################
+
+# basic window
 main_layout = [
 [sg.Text('Main Menu')],
 [sg.Button('Load Data')],
 [sg.Exit()]
 ]
 
-#TODO: allow ability to select and load multiple files
+
+#define progress bar window
+def create_prog_bar_popup(debug):
+	pg_layout = [
+		[sg.Text('Processing files')],
+		[
+			sg.ProgressBar(total_files, orientation='h', size=(20,20), key='progressbar_f'), 
+			sg.Text('Files processed:',  size=(20,None)), 
+			sg.Text(size=(10,None), key='file_c') # show progress in %
+		],
+		[
+			sg.ProgressBar(total_files*3, orientation='h', size=(20,20), key='progressbar_p'),
+			sg.Text('Number of processes:',  size=(20,None)),
+			sg.Text(size=(10,None), key='proc_c')
+		],
+		[sg.Cancel()]
+	]
+
+	if debug:
+		debug_output = sg.Output(size=(30,10))
+		pg_layout.insert(3, debug_output)
+
+	return sg.Window('File Processing').Layout(pg_layout)
 
 
+# creates data loading popup window based on boolean to render warning message
 def create_load_data_popup(warning=False):
 	warn_text = [sg.Text(text='  *Make sure folder only contains .wav files.', text_color='#d9534f')]
 
@@ -38,9 +69,14 @@ def create_load_data_popup(warning=False):
 
 	return sg.Window('Select folder containing audio files').Layout(load_data_layout)
 
+#TODO: allow ability to select and load multiple files
 
-load_data_popup = create_load_data_popup()
+###############
+#### ENTRY ####
+###############
+
 main_window = sg.Window('Main Menu').Layout(main_layout)
+load_data_popup = create_load_data_popup()
 
 #main window
 while True:
@@ -71,7 +107,6 @@ while True:
 				# close load_data_popup
 				load_data_popup.close()
 
-
 				wave_dir = ld_values['_FILES_'].split(';')[0]
 
 				print('### SELECTED FOLDER ###')
@@ -101,8 +136,6 @@ while True:
 
 					png_sav_dir = './png_scalogram'
 					wave_sav_dir = './wav_transform'
-
-
 
 
 					###########################################################
@@ -151,16 +184,8 @@ while True:
 						exit(-1)
 
 					
-
-					#define progress bar window
-					pg_layout = [[sg.Text('Processing files')],
-								[sg.ProgressBar(total_files, orientation='h', size=(20,20), key='progressbar_f')], # show progress in %
-								[sg.Text('Files processed:'), sg.Text(size=(15,1), key='file_c')],
-								[sg.ProgressBar(total_files*3, orientation='h', size=(20,20), key='progressbar_p')], 
-								[sg.Text('Number of processes:'), sg.Text(size=(15,1), key='proc_c')],
-								[sg.Cancel()]]
-
-					pg_window = sg.Window('File Processing').Layout(pg_layout)
+					pg_window = create_prog_bar_popup(DEBUG_MODE)
+					# pg_window = sg.Window('File Processing').Layout(pg_layout)
 					progress_bar = pg_window['progressbar_f']
 					process_count = pg_window['progressbar_p']
 
