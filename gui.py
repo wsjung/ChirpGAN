@@ -8,11 +8,16 @@ import time
 
 from scalogram.pipeline import WavPipeline
 
+
+import queue
+import threading
+
+
 ################
 # CONFIGS VARS #
 ################
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 
 #sg.theme('DarkAmber')	# color
@@ -44,12 +49,14 @@ def create_prog_bar_popup(debug):
 			sg.Text('Number of processes:',  size=(20,None)),
 			sg.Text(size=(10,None), key='proc_c')
 		],
-		[sg.Cancel()]
+		[sg.Button('Start Op'), sg.Button('Check responsive'), sg.Cancel()]
 	]
 
 	if debug:
-		debug_output = sg.Output(size=(30,10))
+		debug_text = [sg.Text('Debug output:')]
+		debug_output = [sg.Output(size=(80,10))]
 		pg_layout.insert(3, debug_output)
+		pg_layout.insert(3, debug_text)
 
 	return sg.Window('File Processing').Layout(pg_layout)
 
@@ -71,6 +78,97 @@ def create_load_data_popup(warning=False):
 
 #TODO: allow ability to select and load multiple files
 
+
+
+####################################
+### FUNCTION TO BE MULTITHREADED ###
+####################################
+
+def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, gui_queue):
+	"""
+	Args:
+		gui_queue: Queue to communicate back to GUI with messages
+	"""
+	i=1
+
+	for splitwav in listwavs:
+		gui_queue.put("TEST")
+		gui_queue.put('file: ', splitwav)
+		if splitwav.endswith('.wav'):
+
+			### report progress
+			gui_queue.put('(%d/%d)' % (i, totalwavs))
+			#track process
+			p = ((i-1)*3)
+
+			wavname = os.path.join(wave_sav_dir, splitwav)              # .wav file with full path
+			fname = splitwav[:splitwav.rfind('.')]                      # remove .wav extension
+			scalname = os.path.join(png_sav_dir , '%s.scal' % fname)    # .scal file with full path
+			scalgzname = scalname + '.gz'                               # .scal.gz file
+			mp3name = os.path.join(wave_sav_dir, fname + '.mp3')        # .mp3 name
+
+								
+			gui_queue.put('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
+
+			gui_queue.put('WAV TO SCL\n')
+
+			#wav_s = os.stat(wavname)
+			#size_wav += wav_s.st_size
+
+
+			#start = time.time()
+			WavPipeline.wavToScl(wavname, scalname, scalgzname, mp3name)
+			#stop =  time.time()
+
+			#time_wavToScl += (stop-start)  
+
+			process_count.UpdateBar(p+1) 
+			pg_window['proc_c'].update('(%d/%d)' % (p+1,(total_files*3)))
+			pg_window.read(timeout=100)
+
+			gui_queue.put('SCL TO PNG\n')
+
+			#scl_s = os.stat(scalname)
+			#size_scl += scl_s.st_size
+			
+			#start = time.time()
+			WavPipeline.scalToPng(fname,scalname,scalgzname, png_sav_dir )
+			#stop = time.time()
+
+			#time_sclToPng += (stop-start)
+
+			process_count.UpdateBar(p+2) 
+			pg_window['proc_c'].update('(%d/%d)' % (p+2,(total_files*3)))
+			pg_window.read(timeout=10)
+
+			gui_queue.put('PNG FLOOD FILL\n')
+
+			pngname = os.path.join(png_sav_dir , '%s.png' % fname)
+
+			#png_s = os.stat(pngname)
+			#size_png += png_s.st_size
+
+			#start = time.time()
+			WavPipeline.flood_png(fname, png_sav_dir )
+			#stop = time.time()
+
+			process_count.UpdateBar(p+3)
+			pg_window['proc_c'].update('(%d/%d)' % (p+3,(total_files*3)))
+			pg_window.read(timeout=100)
+
+			#time_flood += (stop-start)
+			
+			
+
+			progress_bar.UpdateBar(i)  
+			pg_window['file_c'].update('(%d/%d)' % (i,total_files))
+			pg_window.read(timeout=100)
+
+			i+=1
+
+
+
+
 ###############
 #### ENTRY ####
 ###############
@@ -85,7 +183,7 @@ while True:
 	
 	if event == ('Exit'):
 		main_window.close()
-
+		break
 
 	if event in ('Load Data'):
 		#pop up load window
@@ -93,7 +191,7 @@ while True:
 		# boolean for showing warning message in load data layout
 		wav_only_warning = False
 
-		while True:
+		while True: 
 
 			load_data_popup = create_load_data_popup(wav_only_warning)
 			ld_event, ld_values = load_data_popup.read()
@@ -101,6 +199,7 @@ while True:
 
 			if ld_event == 'Cancel':
 				load_data_popup.close()
+				break
 
 			if ld_event in ('OK'):
 				
@@ -185,6 +284,9 @@ while True:
 
 					
 					pg_window = create_prog_bar_popup(DEBUG_MODE)
+					# create communicate queue if debug mode
+					if DEBUG_MODE: gui_queue = queue.Queue()
+
 					# pg_window = sg.Window('File Processing').Layout(pg_layout)
 					progress_bar = pg_window['progressbar_f']
 					process_count = pg_window['progressbar_p']
@@ -199,89 +301,41 @@ while True:
 
 					pg_window.read(timeout=10)
 
+					# progress bar event loop
+					while True:
+						event, values = pg_window.read(timeout=100)
 
-					try:
-						for splitwav in listwavs:
-							print("TEST")
-							print(splitwav)
-							if splitwav.endswith('.wav'):
+						if event in (None, 'Exit', 'Cancel'):
+							break
+						elif event.startswith('Start'):
+							try:
+								print('STARTING THREAD')
+								threading.Thread(target=main_op_thread, 
+													args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, gui_queue), 
+													daemon=True).start()
+							except Exception as e:
+								print('Error starting work thread')
+						elif event == 'Check responsive':
+							print('GUI is responsive')
 
-								### report progress
-								print('(%d/%d)' % (i, totalwavs))
-								#track process
-								p = ((i-1)*3)
+						# check for incoming messages from thread\
+						try:
+							message = gui_queue.get_nowait()
+						except queue.Empty:
+							message = None
 
-								wavname = os.path.join(wave_sav_dir, splitwav)              # .wav file with full path
-								fname = splitwav[:splitwav.rfind('.')]                      # remove .wav extension
-								scalname = os.path.join(png_sav_dir , '%s.scal' % fname)    # .scal file with full path
-								scalgzname = scalname + '.gz'                               # .scal.gz file
-								mp3name = os.path.join(wave_sav_dir, fname + '.mp3')        # .mp3 name
-
-													
-								print('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
-
-								print('WAV TO SCL\n')
-
-								#wav_s = os.stat(wavname)
-								#size_wav += wav_s.st_size
-
-
-								#start = time.time()
-								WavPipeline.wavToScl(wavname, scalname, scalgzname, mp3name)
-								#stop =  time.time()
-
-								#time_wavToScl += (stop-start)  
-
-								process_count.UpdateBar(p+1) 
-								pg_window['proc_c'].update('(%d/%d)' % (p+1,(total_files*3)))
-								pg_window.read(timeout=10)
-						
-								print('SCL TO PNG\n')
-
-								#scl_s = os.stat(scalname)
-								#size_scl += scl_s.st_size
-								
-								#start = time.time()
-								WavPipeline.scalToPng(fname,scalname,scalgzname, png_sav_dir )
-								#stop = time.time()
-
-								#time_sclToPng += (stop-start)
-
-								process_count.UpdateBar(p+2) 
-								pg_window['proc_c'].update('(%d/%d)' % (p+2,(total_files*3)))
-								pg_window.read(timeout=10)
-
-								print('PNG FLOOD FILL\n')
-
-								pngname = os.path.join(png_sav_dir , '%s.png' % fname)
-
-								#png_s = os.stat(pngname)
-								#size_png += png_s.st_size
-
-								#start = time.time()
-								WavPipeline.flood_png(fname, png_sav_dir )
-								#stop = time.time()
-
-								process_count.UpdateBar(p+3)
-								pg_window['proc_c'].update('(%d/%d)' % (p+3,(total_files*3)))
-								pg_window.read(timeout=10)
-
-								#time_flood += (stop-start)
-								
-								
-
-								progress_bar.UpdateBar(i)  
-								pg_window['file_c'].update('(%d/%d)' % (i,total_files))
-								pg_window.read(timeout=10)
-
-								i+=1
-
-					except:
-						print('################## ERROR DURING DATA PROCESSING ################')
-						exit(-1)
-
+						# display message from queue
+						if message:
+							print(message)
 
 					pg_window.close()
+
+					# try:
+						
+
+					# except:
+					# 	print('################## ERROR DURING DATA PROCESSING ################')
+					# 	exit(-1)
 
 					# TODO: SEPARATELY CALL EACH FUNCTION IN THE PIPELINE
 					# TODO: UPDATE THE GUI AND THE USER ON THE PROCESS OF EACH FUNCTION CALL
