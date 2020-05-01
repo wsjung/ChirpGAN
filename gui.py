@@ -13,6 +13,14 @@ import queue
 import threading
 
 
+## TODO: CREATE SETTINGS WINDOW (SAVE/LOAD FROM JSON?)
+###### TODO: (EN/DIS)ABLE DEVELOPER (DEBUG) MODE [CHECKBOX]
+###### TODO: (EN/DIS)ABLE NOTIFY-RUN NOTIFICATIONS [CHECKBOX] (use enable_events for element-specific event listeners)
+########## TODO: on (ENABLE), set notify-run settings visible
+########## TODO: on (ENABLE), register notify-run with user device and display notification link
+########## TODO: on (DISABLE), disable notify-run setttings 
+
+
 ################
 # CONFIGS VARS #
 ################
@@ -85,7 +93,7 @@ def create_load_data_popup(wav_warning=False, empty_warning=False):
 
 
 ####################################
-### FUNCTION TO BE MULTITHREADED ###
+### FUNCTION TO BE MULTITHREADED ### sourced from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Multithreaded_Long_Tasks.py
 ####################################
 
 def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, debug, gui_queue):
