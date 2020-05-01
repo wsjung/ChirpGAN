@@ -228,6 +228,8 @@ while True:
 
 				except:
 					print('################## ERROR DURING DATA PROCESSING ################')
+					pg_window.close()
+					load_data_popup.close()
 					exit(-1)
 
 
