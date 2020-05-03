@@ -42,8 +42,8 @@ DEBUG_MODE = False
 
 #default settings parameters
 SETTINGS_FILE = os.path.join(os.path.dirname('./'), r'settings_file.cfg')
-DEFAULT_SETTINGS = {'theme': sg.theme()}
-SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-'}
+DEFAULT_SETTINGS = {'theme': sg.theme(), 'debug': False, 'notify': False}
+SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-', 'debug': '-DEBUG-', 'notify' : '-NOTIFY-'}
 
 
 def create_main_window(settings):
@@ -83,32 +83,41 @@ def save_settings(settings_file, settings, values):
     with open(settings_file, 'w') as f:
         jsondump(settings, f)
 
+    sg.popup('Settings saved')
+
 #create settings window
 def create_settings_window(settings):
-    sg.theme(settings['theme'])
+	print(settings,'\n')
 
-    def TextLabel(text): return sg.Text(text+':', justification='r', size=(15,1))
+	sg.theme(settings['theme'])
 
-    layout = [  [sg.Text('Settings', font='Any 15')],
-                [TextLabel('Theme'),sg.Combo(sg.theme_list(), size=(20, 20), key='-THEME-')],
-                [sg.Button('Save'), sg.Button('Exit')]  ]
 
-    window = sg.Window('Settings', layout, keep_on_top=True, finalize=True)
+	debug = settings['debug']
+	notify_run = settings['notify']
 
-    for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:   # update window with the values read from settings file
-        try:
-            window[SETTINGS_KEYS_TO_ELEMENT_KEYS[key]].update(value=settings[key])
-        except Exception as e:
-            print(f'Problem updating PySimpleGUI window from settings. Key = {key}')
+	def TextLabel(text): return sg.Text(text+':', justification='r', size=(15,1))
 
-    return window
+	layout = [  [sg.Text('Settings', font='Any 15')],
+				[TextLabel('Theme'),sg.Combo(sg.theme_list(), size=(20, 20), key='-THEME-')],
+				[sg.Checkbox('Developer Mode', default = debug, key='-DEBUG-'),sg.Checkbox('Display Events', default = notify_run, key = '-NOTIFY-') ],
+				[sg.Button('Save'), sg.Button('Exit')]]
+
+	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True)
+
+	for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:   # update window with the values read from settings file
+		try:
+			window[SETTINGS_KEYS_TO_ELEMENT_KEYS[key]].update(value=settings[key])
+		except Exception as e:
+			print(f'Problem updating PySimpleGUI window from settings. Key = {key}')
+
+	return window
 
 
 
 #define progress bar window
 def create_prog_bar_popup(settings):
 
-	degug = True #TODO get from settings
+	degug = settings['debug'] #TODO get from settings
 	sg.theme(settings['theme'])
 
 
@@ -285,15 +294,6 @@ def main():
 				mainain_window = None
 				save_settings(SETTINGS_FILE, settings, values)
 				
-				update_layout = [[sg.Text('Settings Saved')],
-				[sg.Button('OK')]]    
-
-				update = sg.Window('Updated Settings',update_layout)
-
-				upEv, upVal = update.read(close=True)
-				if event == 'OK':
-					main()
-
 				change_settings = True
 			break
 
