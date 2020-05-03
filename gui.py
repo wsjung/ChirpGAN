@@ -104,7 +104,7 @@ def create_settings_window(settings):
 				[sg.Button('Default Settings')],
 				[sg.Button('Save'), sg.Text('		     '), sg.Button('Exit')]]
 
-	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True, resizable = True)
+	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True, resizable = False)
 
 	for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:   # update window with the values read from settings file
 		try:
@@ -144,7 +144,7 @@ def create_prog_bar_popup(settings, total_files):
 		pg_layout.insert(3, debug_output)
 		pg_layout.insert(3, debug_text)
 
-	return sg.Window('File Processing',pg_layout,resizable = True)
+	return sg.Window('File Processing',pg_layout,resizable = False)
 
 
 # creates data loading popup window based on boolean to render warning message
