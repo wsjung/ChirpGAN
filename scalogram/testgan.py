@@ -437,16 +437,62 @@ def load_saved_models(d_modelnames, g_modelnames, n_blocks): # [tuned_model,fade
     """
 
     assert len(d_modelnames) == len(g_modelnames)
-    assert len(d_modelnames) % 2 == 0
+    assert len(d_modelnames) % 2 == 1 # odd since first model is lowest res which as no faded version
 
     # custom layers
-    cust_objs={'PixelNormalization': PixelNormalization, 'MinibatchStdev': MinibatchStdev, 'WeightedSum': WeightedSum}
+    cust_objs={'PixelNormalization': PixelNormalization, 'MinibatchStdev': MinibatchStdev, 'WeightedSum': WeightedSum, 'wasserstein_loss': wasserstein_loss}
 
     d_model_list = list()
     g_model_list = list()
-    for i in range(len(d_modelnames)/2): # load models
-        d_model_list[i] = [load_model(d_modelnames[i], custom_objects=cust_objs), load_model(d_modelnames[2*i+1], custom_objects=cust_objs)]
-        g_model_list[i] = [load_model(g_modelnames[i], custom_objects=cust_objs), load_model(g_modelnames[2*i+1], custom_objects=cust_objs)]
+
+    # add lowest res models
+    d_model = load_model(d_modelnames[0], custom_objects=cust_objs)
+    d_model.name = d_model.name + '_d0'
+    g_model = load_model(g_modelnames[0], custom_objects=cust_objs)
+    g_model.name = g_model.name + '_g0'
+
+    d_model_list.append([d_model,d_model])
+    g_model_list.append([g_model,g_model])
+
+    # d_model_list.append([load_model(d_modelnames[0], custom_objects=cust_objs), load_model(d_modelnames[0], custom_objects=cust_objs)])
+    # g_model_list.append([load_model(g_modelnames[0], custom_objects=cust_objs), load_model(g_modelnames[0], custom_objects=cust_objs)])
+
+    print('added [%s,%s]' % (d_modelnames[0],d_modelnames[0]))
+    print('added [%s,%s]' % (g_modelnames[0],g_modelnames[0]))
+
+    for i in range(1,int((len(d_modelnames)+1)/2)): # load models
+        d_model1 = load_model(d_modelnames[2*i-1], custom_objects=cust_objs)
+        d_model2 = load_model(d_modelnames[2*i], custom_objects=cust_objs)
+        
+        g_model1 = load_model(g_modelnames[2*i-1], custom_objects=cust_objs)
+        g_model2 = load_model(g_modelnames[2*i], custom_objects=cust_objs)
+
+        d_model1.name = d_model1.name + '_d%d_0' % i
+        d_model2.name = d_model2.name + '_d%d_1' % i
+        g_model1.name = g_model1.name + '_g%d_0' % i
+        g_model2.name = g_model2.name + '_g%d_1' % i
+
+        d_model_list.append([d_model1, d_model2])
+        g_model_list.append([g_model1, g_model2])
+
+        # d_model_list.append([load_model(d_modelnames[2*i-1], custom_objects=cust_objs), load_model(d_modelnames[2*i], custom_objects=cust_objs)])
+        # g_model_list.append([load_model(g_modelnames[2*i-1], custom_objects=cust_objs), load_model(g_modelnames[2*i], custom_objects=cust_objs)])
+        print('added [%s,%s]' % (d_modelnames[2*i-1],d_modelnames[2*i]))
+        print('added [%s,%s]' % (g_modelnames[2*i-1],g_modelnames[2*i]))
+
+
+    print(len(d_model_list))
+
+    # rename layers
+    for i,x in enumerate(d_model_list):
+        print(len(x))
+        for m in x:
+            for layer in m.layers:
+                layer.name = layer.name + '_%d' % i
+    for i,x in enumerate(g_model_list):
+        for m in x:
+            for layer in m.layers:
+                layer.name = layer.name + '_%d' % i
 
 
     for i in range(len(d_model_list), n_blocks): # add the missing higher-resolution models
@@ -469,7 +515,9 @@ def train_saved_models(d_models, g_models, gan_models, dataset, latent_dim, e_no
         n_model: number of models that have completed trainig (# loaded models)
     """
 
-    for i in range(n_model, len(g_models)):
+    print('nmodel: ', n_model)
+
+    for i in range(int(n_model), len(g_models)):
         # retrieve models for this level of growth
         [g_normal, g_fadein] = g_models[i]
         [d_normal, d_fadein] = d_models[i]
@@ -495,15 +543,15 @@ def load_and_train(d_modelnames, g_modelnames):
     n_batch = [16, 16, 16, 8]
     n_epochs = [8, 8, 8, 10]
 
-    print('loading saved models')
+    print('loading saved models', flush=True)
     d_models, g_models, gan_models = load_saved_models(d_modelnames, g_modelnames, n_blocks)
-    print('loaded saved models')
+    print('loaded saved models', flush=True)
 
     # load image data
     dataset = load_real_samples('../flooded_pngs/bird_data.npz')
     print('Loaded', dataset.shape)
 
-    train_saved_models(d_models, g_models, gan_models, dataset, latent_dim, n_epochs, n_epochs, n_batch, len(d_modelnames) / 2)
+    train_saved_models(d_models, g_models, gan_models, dataset, latent_dim, n_epochs, n_epochs, n_batch, (len(d_modelnames)+1) / 2)
 
 
 def main():
@@ -527,11 +575,18 @@ def main():
     train(g_models, d_models, gan_models, dataset, latent_dim, n_epochs, n_epochs, n_batch)
 
 def main_load_train():
-    print('main_load_train')
+    # lowest res to highest res, [tuned,faded]
+    
+    # FILL IN YOUR FILES IN ORDER HERE
+    # [LOWEST RES, 2ND_LOWEST_RES_TUNED, 2ND_LOWEST_RES_FADED, ...]
+    d_model_names = []
+    g_model_names = []
+
+    load_and_train(d_modelnames, g_modelnames)
 
 def main_generate(modelname, latent_dim = 100, n_samples=25):
 
-    g_model = load_model(modelname, custom_objects={'PixelNormalization': PixelNormalization, 'MinibatchStdev': MinibatchStdev, 'WeightedSum': WeightedSum})
+    g_model = load_model(modelname, custom_objects={'PixelNormalization': PixelNormalization, 'MinibatchStdev': MinibatchStdev, 'WeightedSum': WeightedSum, 'wasserstein_loss': wasserstein_loss})
 
     # generate images
     X, _ = generate_fake_samples(g_model, latent_dim, n_samples)
@@ -548,6 +603,6 @@ def main_generate(modelname, latent_dim = 100, n_samples=25):
 
 
 if __name__ == '__main__':
-    main()
-    # main_load_train()
+    # main()
+    main_load_train()
     # main_generate(modelname='model_064x150-faded_11-04-2020_12-21-45_AM.h5')
