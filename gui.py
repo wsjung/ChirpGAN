@@ -11,7 +11,7 @@ from scalogram.pipeline import WavPipeline
 #for settings
 from json import (load as jsonload, dump as jsondump)
 
-
+from notify_run import Notify
 
 import queue
 import threading
@@ -38,9 +38,9 @@ import threading
 
 
 #default settings parameters
-SETTINGS_FILE = os.path.join(os.path.dirname('./'), r'settings_file.cfg')
-DEFAULT_SETTINGS = {'theme': sg.theme(), 'debug': False, 'notify': False}
-SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-', 'debug': '-DEBUG-', 'notify' : '-NOTIFY-'}
+SETTINGS_FILE = os.path.join(os.path.dirname('./'), r'.settings_file.cfg')
+DEFAULT_SETTINGS = {'theme': sg.theme(), 'debug': False, 'notify': False, 'notifylink': None}
+SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-', 'debug': '-DEBUG-', 'notify' : '-NOTIFY-', 'notifylink' : '-NOTIFYLINK-'}
 
 
 def create_main_window(settings):
@@ -57,47 +57,50 @@ def create_main_window(settings):
 
 #ability to load setings from JSON
 def load_settings(settings_file, default_settings):
-    try:
-        with open(settings_file, 'r') as f:
-            settings = jsonload(f)
-    except Exception as e:
-    	#setting config not found
-        sg.popup_quick_message(f'exception {e}', 'No settings file found... will create one for you', keep_on_top=True, background_color='red', text_color='white')
-        settings = default_settings
-        save_settings(settings_file, settings, None)
-    return settings
+	try:
+		with open(settings_file, 'r') as f:
+			settings = jsonload(f)
+	except Exception as e:
+		#setting config not found
+		sg.popup_quick_message(f'exception {e}', 'No settings file found... will create one for you', keep_on_top=True, background_color='red', text_color='white')
+		settings = default_settings
+		save_settings(settings_file, settings, None)
+	return settings
 
 
 #write user settings to JSON
-def save_settings(settings_file, settings, values):
-    if values:      # if there are stuff specified by another window, fill in those values
-        for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:  # update window with the values read from settings file
-            try:
-                settings[key] = values[SETTINGS_KEYS_TO_ELEMENT_KEYS[key]]
-            except Exception as e:
-                print(f'Problem updating settings from window values. Key = {key}')
+def save_settings(settings_file, settings, values, popup=False):
+	if values:	  # if there are stuff specified by another window, fill in those values
+		for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:  # update window with the values read from settings file
+			try:
+				settings[key] = values[SETTINGS_KEYS_TO_ELEMENT_KEYS[key]]
+			except Exception as e:
+				print(f'Problem updating settings from window values. Key = {key}')
 
-    with open(settings_file, 'w') as f:
-        jsondump(settings, f)
+	with open(settings_file, 'w') as f:
+		jsondump(settings, f)
 
-    sg.popup('Settings saved')
+	if popup:
+		sg.popup('Settings saved')
 
 #create settings window
 def create_settings_window(settings):
-	print(settings,'\n')
-
 	sg.theme(settings['theme'])
 
 
 	debug = settings['debug']
 	notify_run = settings['notify']
+	notifylink = settings['notifylink']
 
-	def TextLabel(text): return sg.Text(text+':', justification='r', size=(15,1))
+	def TextLabel(text): return sg.Text(text+':', justification='l', size=(5,1))
 
 	layout = [  [sg.Text('Settings', font='Any 15')],
-				[TextLabel('Theme'),sg.Combo(sg.theme_list(), size=(20, 20), key='-THEME-')],
-				[sg.Checkbox('Developer Mode', default = debug, key='-DEBUG-'),sg.Checkbox('Display Events', default = notify_run, key = '-NOTIFY-') ],
-				[sg.Button('Save'), sg.Button('Exit')]]
+				[TextLabel('Theme'), sg.Combo(sg.theme_list(), size=(20, 20), key='-THEME-')],
+				[sg.Checkbox('Developer Mode', default = debug, key='-DEBUG-')],
+				[sg.Checkbox('Web Notification', default = notify_run, change_submits = True, enable_events=True, key ='-NOTIFY-')],
+				[sg.Text('\tLink: '), sg.Text(notifylink, size=(30,1), enable_events=True, justification='l', key='-NOTIFYLINK-')],
+				[sg.Button('Save'), sg.Button('Cancel')]
+				]
 
 	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True)
 
@@ -105,7 +108,7 @@ def create_settings_window(settings):
 		try:
 			window[SETTINGS_KEYS_TO_ELEMENT_KEYS[key]].update(value=settings[key])
 		except Exception as e:
-			print(f'Problem updating PySimpleGUI window from settings. Key = {key}')
+			print(f'Problem updating PySimpleGUI window from settings. Key = {key}', e)
 
 	return window
 
@@ -190,11 +193,11 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			#track process
 			p = ((i-1)*3)
 
-			wavname = os.path.join(wave_sav_dir, splitwav)              # .wav file with full path
-			fname = splitwav[:splitwav.rfind('.')]                      # remove .wav extension
-			scalname = os.path.join(png_sav_dir , '%s.scal' % fname)    # .scal file with full path
-			scalgzname = scalname + '.gz'                               # .scal.gz file
-			mp3name = os.path.join(wave_sav_dir, fname + '.mp3')        # .mp3 name
+			wavname = os.path.join(wave_sav_dir, splitwav)			  # .wav file with full path
+			fname = splitwav[:splitwav.rfind('.')]					  # remove .wav extension
+			scalname = os.path.join(png_sav_dir , '%s.scal' % fname)	# .scal file with full path
+			scalgzname = scalname + '.gz'							   # .scal.gz file
+			mp3name = os.path.join(wave_sav_dir, fname + '.mp3')		# .mp3 name
 
 
 			if debug:				
@@ -259,15 +262,12 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 ###############
 #### ENTRY ####
 ###############
-change_settings = False
 
 def main():
 	change_settings = False
 
 	main_window, load_data_popup, settings = None, None, load_settings(SETTINGS_FILE, DEFAULT_SETTINGS)
 	DEBUG_MODE = settings['debug']
-
-	change_settings = False
 
 	while True:
 		if main_window is None:
@@ -276,8 +276,6 @@ def main():
 		if load_data_popup is None:
 			load_data_popup = create_load_data_popup(settings)
 
-
-
 		event, values = main_window.read()
 		#print('event: %s\nvalues: %s' % (event, values))
 		
@@ -285,15 +283,55 @@ def main():
 			main_window.close()
 			break
 
-
 		if event in ('Settings'):
-			event, values = create_settings_window(settings).read(close=True)
-			if event == 'Save':
-				main_window.close()
-				main_window = None
-				save_settings(SETTINGS_FILE, settings, values)
+			settings_window = create_settings_window(settings)
+
+			while True:
+				event, values = settings_window.read()
+
+				if event in (None, 'Quit'):
+					settings_window.close()
+					break
+
+				if event == 'Cancel': 
+					settings_window.close()
+					break
 				
-				change_settings = True
+				if event == 'Save':
+					settings_window.close()
+
+					main_window.close()
+					main_window = None
+					
+					# for some reason values does not contain the key for Text elements
+					values['-NOTIFYLINK-'] = settings_window['-NOTIFYLINK-'].DisplayText
+
+					save_settings(SETTINGS_FILE, settings, values, popup=True)
+					
+					change_settings = True
+
+					break
+
+				if values['-NOTIFY-']: # register using notify-run
+					notify = Notify()
+					endpointinfo = notify.register()
+
+					endpointlink = str(endpointinfo).split('\n')[0][10:]
+
+					settings_window['-NOTIFYLINK-'].Update(endpointlink)
+				else:
+					settings_window['-NOTIFYLINK-'].Update('N/A')
+
+				if event == '-NOTIFYLINK-' and values['-NOTIFY-']: # clicked on link
+					import webbrowser
+
+					link = settings_window['-NOTIFYLINK-'].DisplayText
+
+					# send a welcome message
+					notify.send('Notifications will appear here.')
+
+					webbrowser.open_new(link)
+
 			
 			continue
 
@@ -357,7 +395,7 @@ def main():
 
 
 						###########################################################
-						### PASS FILES TO DATA PIPELINE                         ###
+						### PASS FILES TO DATA PIPELINE						 ###
 						###########################################################
 
 						print('SPLITTING\n')
@@ -455,8 +493,8 @@ def main():
 							
 
 						# except:
-						# 	print('################## ERROR DURING DATA PROCESSING ################')
-						# 	exit(-1)
+						#	 print('################## ERROR DURING DATA PROCESSING ################')
+						#	 exit(-1)
 
 						# TODO: SEPARATELY CALL EACH FUNCTION IN THE PIPELINE
 						# TODO: UPDATE THE GUI AND THE USER ON THE PROCESS OF EACH FUNCTION CALL
