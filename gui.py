@@ -29,9 +29,6 @@ import threading
 # CONFIGS VARS #
 ################
 
-DEBUG_MODE = False
-
-
 #sg.theme('DarkAmber')	# color
 
 
@@ -268,6 +265,8 @@ def main():
 	change_settings = False
 
 	main_window, load_data_popup, settings = None, None, load_settings(SETTINGS_FILE, DEFAULT_SETTINGS)
+	DEBUG_MODE = settings['debug']
+
 	change_settings = False
 
 	while True:
