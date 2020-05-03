@@ -48,11 +48,11 @@ def create_main_window(settings):
 
 	main_layout = [
 	[sg.Text('Main Menu')],
-	[sg.Button('Load Data')],
-	[sg.Exit(), sg.Button('Settings')]
+	[sg.Button('Load Data',size=(40,2))],
+	[sg.Exit(),sg.Text('		     '), sg.Button('Settings')]
 	]
 
-	return sg.Window('Main Menu', main_layout)
+	return sg.Window('Main Menu', main_layout, resizable = False)
 
 
 #ability to load setings from JSON
@@ -102,9 +102,9 @@ def create_settings_window(settings):
 				[TextLabel('Theme'),sg.Combo(sg.theme_list(), size=(20, 20), key='-THEME-')],
 				[sg.Checkbox('Developer Mode', default = debug, key='-DEBUG-'),sg.Checkbox('Display Events', default = notify_run, key = '-NOTIFY-') ],
 				[sg.Button('Default Settings')],
-				[sg.Button('Save'), sg.Button('Exit')]]
+				[sg.Button('Save'), sg.Text('		     '), sg.Button('Exit')]]
 
-	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True)
+	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True, resizable = True)
 
 	for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:   # update window with the values read from settings file
 		try:
@@ -144,7 +144,7 @@ def create_prog_bar_popup(settings, total_files):
 		pg_layout.insert(3, debug_output)
 		pg_layout.insert(3, debug_text)
 
-	return sg.Window('File Processing').Layout(pg_layout)
+	return sg.Window('File Processing',pg_layout,resizable = True)
 
 
 # creates data loading popup window based on boolean to render warning message
@@ -158,7 +158,7 @@ def create_load_data_popup(settings, wav_warning=False, empty_warning=False):
 	load_data_layout = [
 		[sg.Text('Folder of bird vocalization files to load: ')],
 		[sg.Input(key='_FILES_'), sg.FolderBrowse()], 
-		[sg.OK(), sg.Cancel()]
+		[sg.OK(), sg.Text('				      '), sg.Cancel()]
 	]
 
 	if wav_warning:
