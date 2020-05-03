@@ -67,6 +67,10 @@ def load_settings(settings_file, default_settings):
         save_settings(settings_file, settings, None)
     return settings
 
+def default_settings(settings_file):
+	with open(settings_file, 'w') as f:
+		jsondump(DEFAULT_SETTINGS, f)
+	sg.popup('Settings saved')
 
 #write user settings to JSON
 def save_settings(settings_file, settings, values):
@@ -97,6 +101,7 @@ def create_settings_window(settings):
 	layout = [  [sg.Text('Settings', font='Any 15')],
 				[TextLabel('Theme'),sg.Combo(sg.theme_list(), size=(20, 20), key='-THEME-')],
 				[sg.Checkbox('Developer Mode', default = debug, key='-DEBUG-'),sg.Checkbox('Display Events', default = notify_run, key = '-NOTIFY-') ],
+				[sg.Button('Default Settings')],
 				[sg.Button('Save'), sg.Button('Exit')]]
 
 	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True)
@@ -290,8 +295,12 @@ def main():
 			event, values = create_settings_window(settings).read(close=True)
 			if event == 'Save':
 				main_window.close()
-				mainain_window = None
+				main_window = None
 				save_settings(SETTINGS_FILE, settings, values)
+			if event == 'Default Settings':
+				main_window.close()
+				main_window = None
+				default_settings(SETTINGS_FILE)
 				
 				change_settings = True
 			break
@@ -478,7 +487,6 @@ def main():
 
 
 
-	load_data_popup.close()
-	main_window.close()
+
 
 main()
