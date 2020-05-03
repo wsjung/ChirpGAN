@@ -8,6 +8,10 @@ import time
 
 from scalogram.pipeline import WavPipeline
 
+#for settings
+from json import (load as jload, dump as jdump)
+
+
 
 import queue
 import threading
@@ -39,8 +43,62 @@ DEBUG_MODE = False
 main_layout = [
 [sg.Text('Main Menu')],
 [sg.Button('Load Data')],
+[sg.Button('Settings')],
 [sg.Exit()]
 ]
+
+
+#default settings parameters
+DEFAULT_SETTINGS = {'theme': sg.theme()}
+SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-'}
+
+#ability to load setings from JSON
+def load_settings(settings_file, default_settings):
+    try:
+        with open(settings_file, 'r') as f:
+            settings = jsonload(f)
+    except Exception as e:
+    	#setting config not found
+        sg.popup_quick_message(f'exception {e}', 'No settings file found... will create one for you', keep_on_top=True, background_color='red', text_color='white')
+        settings = default_settings
+        save_settings(settings_file, settings, None)
+    return settings
+
+
+#write user settings to JSON
+def save_settings(settings_file, settings, values):
+    if values:      # if there are stuff specified by another window, fill in those values
+        for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:  # update window with the values read from settings file
+            try:
+                settings[key] = values[SETTINGS_KEYS_TO_ELEMENT_KEYS[key]]
+            except Exception as e:
+                print(f'Problem updating settings from window values. Key = {key}')
+
+    with open(settings_file, 'w') as f:
+        jsondump(settings, f)
+
+    sg.popup('Settings saved')
+
+
+def create_settings_window(settings):
+    sg.theme(settings['theme'])
+
+    def TextLabel(text): return sg.Text(text+':', justification='r', size=(15,1))
+
+    layout = [  [sg.Text('Settings', font='Any 15')],
+                [TextLabel('Theme'),sg.Combo(sg.theme_list(), size=(20, 20), key='-THEME-')],
+                [sg.Button('Save'), sg.Button('Exit')]  ]
+
+    window = sg.Window('Settings', layout, keep_on_top=True, finalize=True)
+
+    for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:   # update window with the values read from settings file
+        try:
+            window[SETTINGS_KEYS_TO_ELEMENT_KEYS[key]].update(value=settings[key])
+        except Exception as e:
+            print(f'Problem updating PySimpleGUI window from settings. Key = {key}')
+
+    return window
+
 
 
 #define progress bar window
@@ -350,7 +408,6 @@ while True:
 								print(message)
 
 					pg_window.close()
-
 					# try:
 						
 
