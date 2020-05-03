@@ -115,9 +115,9 @@ def create_settings_window(settings):
 
 
 #define progress bar window
-def create_prog_bar_popup(settings):
+def create_prog_bar_popup(settings, total_files):
 
-	degug = settings['debug'] #TODO get from settings
+	debug = settings['debug'] #TODO get from settings
 	sg.theme(settings['theme'])
 
 
@@ -175,7 +175,7 @@ def create_load_data_popup(settings, wav_warning=False, empty_warning=False):
 ### FUNCTION TO BE MULTITHREADED ### sourced from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Multithreaded_Long_Tasks.py
 ####################################
 
-def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, debug, gui_queue):
+def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, debug, gui_queue, process_count):
 	"""
 	Args:
 		gui_queue: Queue to communicate back to GUI with messages
@@ -305,7 +305,7 @@ def main():
 			wav_only_warning = False
 
 			while True: 
-				load_data_popup = create_load_data_popup(wav_only_warning, select_folder_warning)
+				load_data_popup = create_load_data_popup(settings, wav_only_warning, select_folder_warning)
 				ld_event, ld_values = load_data_popup.read()
 				#print('ld_event: %s\nld_values: %s' % (ld_event, ld_values))
 
@@ -402,7 +402,7 @@ def main():
 							exit(-1)
 
 						
-						pg_window = create_prog_bar_popup(DEBUG_MODE)
+						pg_window = create_prog_bar_popup(settings, total_files)
 						# create communicate queue if debug mode
 						gui_queue = None
 						if DEBUG_MODE: gui_queue = queue.Queue()
@@ -432,7 +432,7 @@ def main():
 								try:
 									print('STARTING THREAD')
 									threading.Thread(target=main_op_thread, 
-														args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, DEBUG_MODE, gui_queue), 
+														args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, DEBUG_MODE, gui_queue, process_count), 
 														daemon=True).start()
 								except Exception as e:
 									print('Error starting work thread')
