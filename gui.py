@@ -9,7 +9,7 @@ import time
 from scalogram.pipeline import WavPipeline
 
 #for settings
-from json import (load as jload, dump as jdump)
+from json import (load as jsonload, dump as jsondump)
 
 
 
@@ -39,18 +39,24 @@ DEBUG_MODE = False
 # FUNCTIONS FOR DYNAMIC GUI WINDOWS #
 #####################################
 
-# basic window
-main_layout = [
-[sg.Text('Main Menu')],
-[sg.Button('Load Data')],
-[sg.Button('Settings')],
-[sg.Exit()]
-]
-
 
 #default settings parameters
+SETTINGS_FILE = os.path.join(os.path.dirname('./'), r'settings_file.cfg')
 DEFAULT_SETTINGS = {'theme': sg.theme()}
 SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-'}
+
+
+def create_main_window(settings):
+	sg.theme(settings['theme'])
+
+	main_layout = [
+	[sg.Text('Main Menu')],
+	[sg.Button('Load Data')],
+	[sg.Exit(), sg.Button('Settings')]
+	]
+
+	return sg.Window('Main Menu', main_layout)
+
 
 #ability to load setings from JSON
 def load_settings(settings_file, default_settings):
@@ -77,9 +83,7 @@ def save_settings(settings_file, settings, values):
     with open(settings_file, 'w') as f:
         jsondump(settings, f)
 
-    sg.popup('Settings saved')
-
-
+#create settings window
 def create_settings_window(settings):
     sg.theme(settings['theme'])
 
@@ -102,7 +106,12 @@ def create_settings_window(settings):
 
 
 #define progress bar window
-def create_prog_bar_popup(debug):
+def create_prog_bar_popup(settings):
+
+	degug = True #TODO get from settings
+	sg.theme(settings['theme'])
+
+
 	pg_layout = [
 		[sg.Text('Processing files')],
 		[
@@ -128,9 +137,12 @@ def create_prog_bar_popup(debug):
 
 
 # creates data loading popup window based on boolean to render warning message
-def create_load_data_popup(wav_warning=False, empty_warning=False):
+def create_load_data_popup(settings, wav_warning=False, empty_warning=False):
 	wav_warn_text = [sg.Text(text='  *Make sure folder only contains .wav files.', text_color='#d9534f')]
 	empty_warn_text = [sg.Text(text='  *Please select a folder.', text_color='#d9534f')]
+
+	sg.theme(settings['theme'])
+
 
 	load_data_layout = [
 		[sg.Text('Folder of bird vocalization files to load: ')],
@@ -241,200 +253,233 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 ###############
 #### ENTRY ####
 ###############
+change_settings = False
 
-main_window = sg.Window('Main Menu').Layout(main_layout)
-load_data_popup = create_load_data_popup()
+def main():
+	change_settings = False
 
-#main window
-while True:
-	event, values = main_window.read()
-	#print('event: %s\nvalues: %s' % (event, values))
-	
-	if event == ('Exit'):
-		main_window.close()
-		break
+	main_window, load_data_popup, settings = None, None, load_settings(SETTINGS_FILE, DEFAULT_SETTINGS)
+	change_settings = False
 
-	if event in ('Load Data'):
-		#pop up load window
+	while True:
+		if main_window is None:
+			main_window = create_main_window(settings)
 
-		# boolean for showing warning message in load data layout
-		select_folder_warning = False
-		wav_only_warning = False
+		if load_data_popup is None:
+			load_data_popup = create_load_data_popup(settings)
 
-		while True: 
-			load_data_popup = create_load_data_popup(wav_only_warning, select_folder_warning)
-			ld_event, ld_values = load_data_popup.read()
-			#print('ld_event: %s\nld_values: %s' % (ld_event, ld_values))
 
-			if ld_event == 'Cancel':
-				load_data_popup.close()
-				break
+
+		event, values = main_window.read()
+		#print('event: %s\nvalues: %s' % (event, values))
 		
-			if ld_event in ('OK') and ld_values['_FILES_']=='': # clicked OK without selecting folder
-				load_data_popup.close()
-				select_folder_warning = True
-			elif ld_event in ('OK'):
-				select_folder_warning = False
-				
-				# close load_data_popup
-				load_data_popup.close()
-
-				print(ld_values)
+		if event == ('Exit'):
+			main_window.close()
+			break
 
 
-				wave_dir = ld_values['_FILES_'].split(';')[0]
-
-				print('### SELECTED FOLDER ###')
-				print(wave_dir)
-
-				print('### SELECTED FILES ###')
-				for file_name in os.listdir(wave_dir):
-					if file_name.endswith(".wav"):
-						print(file_name)
-
-				print('hello')
-				
-				# check for non .wav files in selected folder
-				total_num_files = len(os.listdir(wave_dir))
-				total_num_wavs = len(glob.glob1(wave_dir, '*.wav'))
-				# if non .wav files exist, warn user and return to load_data window
-				if total_num_files == total_num_wavs:
-					wav_only_warning = False
-
-
-					#create file storing wav file transformations
-					if not os.path.exists('./png_scalogram'):
-						os.mkdir('./png_scalogram')
-
-					if not os.path.exists('./wav_transform'):
-						os.mkdir('./wav_transform')
-
-					png_sav_dir = './png_scalogram'
-					wave_sav_dir = './wav_transform'
-
-
-					###########################################################
-					### PASS FILES TO DATA PIPELINE                         ###
-					###########################################################
-
-					print('SPLITTING\n')
-
-					org_wav = os.stat(wave_dir + "/test.wav")
-					print(f'File size in Bytes is {org_wav.st_size}')
-
-
-					start = time.time()
-					#TODO: add option to split wav files from GUI
-					split_wav = True
-					if (split_wav):
-						WavPipeline.split(wave_dir, wave_sav_dir)
-					stop = time.time()
-
-					time_split= stop-start
-
-
-
-					listwavs = os.listdir(wave_sav_dir)
-					totalwavs = len(glob.glob1(wave_sav_dir, '*.wav'))
-					i=1
-
-
-
-					size_wav = 0
-					size_scl = 0
-					size_png = 0
-
-
-					time_wavToScl = 0
-					time_sclToPng = 0
-					time_flood = 0
-
-					total_files = 0
-
-					try:
-						for splitwav in listwavs:
-							total_files += 1
-					except:
-						print('################## CANNOT FIND FILES ################')
-						exit(-1)
-
-					
-					pg_window = create_prog_bar_popup(DEBUG_MODE)
-					# create communicate queue if debug mode
-					gui_queue = None
-					if DEBUG_MODE: gui_queue = queue.Queue()
-
-					# pg_window = sg.Window('File Processing').Layout(pg_layout)
-					progress_bar = pg_window['progressbar_f']
-					process_count = pg_window['progressbar_p']
-
-					pg_window.read(timeout=10)
-
-					process_count.UpdateBar(0)
-					progress_bar.UpdateBar(0)
-
-					pg_window['file_c'].update('(0/%d)' % total_files)
-					pg_window['proc_c'].update('(0/%d)' % (total_files*3))
-
-					pg_window.read(timeout=10)
-
-					# progress bar event loop
-					while True:
-						event, values = pg_window.read(timeout=100)
-
-						if event in (None, 'Exit', 'Cancel'):
-							print('CANCELLED, EXITING')
-							break
-						elif event.startswith('Start'):
-							try:
-								print('STARTING THREAD')
-								threading.Thread(target=main_op_thread, 
-													args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, DEBUG_MODE, gui_queue), 
-													daemon=True).start()
-							except Exception as e:
-								print('Error starting work thread')
-						elif event == 'Check responsive':
-							print('GUI is responsive')
-
-						# check for incoming messages from thread
-						if DEBUG_MODE:
-							try:
-								message = gui_queue.get_nowait()
-							except queue.Empty:
-								message = None
-
-							# display message from queue
-							if message:
-								print(message)
-
-					pg_window.close()
-					# try:
-						
-
-					# except:
-					# 	print('################## ERROR DURING DATA PROCESSING ################')
-					# 	exit(-1)
-
-					# TODO: SEPARATELY CALL EACH FUNCTION IN THE PIPELINE
-					# TODO: UPDATE THE GUI AND THE USER ON THE PROCESS OF EACH FUNCTION CALL
-					# TODO: UPSCALE THE GUI SIZE SO IT IS NOT TIGHTLY FIT TO THE CURRENT GUI ELEMENTS -> MAKE IT MORE USER-FRIENDLY AND NAVIGABLE
-
-
-
-					if ld_event in (None, 'Cancel'):
-						load_data_popup.close()
-						break
-						if event in (None, 'Exit'):
-							break
-				else:
-					print('non .wav files detected')
-					wav_only_warning = True
-
-			if event in (None, 'Exit'):
+		if event in ('Settings'):
+			event, values = create_settings_window(settings).read(close=True)
+			if event == 'Save':
 				main_window.close()
+				mainain_window = None
+				save_settings(SETTINGS_FILE, settings, values)
+				
+				update_layout = [[sg.Text('Settings Saved')],
+				[sg.Button('OK')]]    
+
+				update = sg.Window('Updated Settings',update_layout)
+
+				upEv, upVal = update.read(close=True)
+				if event == 'OK':
+					main()
+
+				change_settings = True
+			break
+
+		if event in ('Load Data'):
+			#pop up load window
+
+			# boolean for showing warning message in load data layout
+			select_folder_warning = False
+			wav_only_warning = False
+
+			while True: 
+				load_data_popup = create_load_data_popup(wav_only_warning, select_folder_warning)
+				ld_event, ld_values = load_data_popup.read()
+				#print('ld_event: %s\nld_values: %s' % (ld_event, ld_values))
+
+				if ld_event == 'Cancel':
+					load_data_popup.close()
+					break
+			
+				if ld_event in ('OK') and ld_values['_FILES_']=='': # clicked OK without selecting folder
+					load_data_popup.close()
+					select_folder_warning = True
+				elif ld_event in ('OK'):
+					select_folder_warning = False
+					
+					# close load_data_popup
+					load_data_popup.close()
+
+					print(ld_values)
+
+
+					wave_dir = ld_values['_FILES_'].split(';')[0]
+
+					print('### SELECTED FOLDER ###')
+					print(wave_dir)
+
+					print('### SELECTED FILES ###')
+					for file_name in os.listdir(wave_dir):
+						if file_name.endswith(".wav"):
+							print(file_name)
+
+					print('hello')
+					
+					# check for non .wav files in selected folder
+					total_num_files = len(os.listdir(wave_dir))
+					total_num_wavs = len(glob.glob1(wave_dir, '*.wav'))
+					# if non .wav files exist, warn user and return to load_data window
+					if total_num_files == total_num_wavs:
+						wav_only_warning = False
+
+
+						#create file storing wav file transformations
+						if not os.path.exists('./png_scalogram'):
+							os.mkdir('./png_scalogram')
+
+						if not os.path.exists('./wav_transform'):
+							os.mkdir('./wav_transform')
+
+						png_sav_dir = './png_scalogram'
+						wave_sav_dir = './wav_transform'
+
+
+						###########################################################
+						### PASS FILES TO DATA PIPELINE                         ###
+						###########################################################
+
+						print('SPLITTING\n')
+
+						org_wav = os.stat(wave_dir + "/test.wav")
+						print(f'File size in Bytes is {org_wav.st_size}')
+
+
+						start = time.time()
+						#TODO: add option to split wav files from GUI
+						split_wav = True
+						if (split_wav):
+							WavPipeline.split(wave_dir, wave_sav_dir)
+						stop = time.time()
+
+						time_split= stop-start
+
+
+
+						listwavs = os.listdir(wave_sav_dir)
+						totalwavs = len(glob.glob1(wave_sav_dir, '*.wav'))
+						i=1
+
+
+
+						size_wav = 0
+						size_scl = 0
+						size_png = 0
+
+
+						time_wavToScl = 0
+						time_sclToPng = 0
+						time_flood = 0
+
+						total_files = 0
+
+						try:
+							for splitwav in listwavs:
+								total_files += 1
+						except:
+							print('################## CANNOT FIND FILES ################')
+							exit(-1)
+
+						
+						pg_window = create_prog_bar_popup(DEBUG_MODE)
+						# create communicate queue if debug mode
+						gui_queue = None
+						if DEBUG_MODE: gui_queue = queue.Queue()
+
+						# pg_window = sg.Window('File Processing').Layout(pg_layout)
+						progress_bar = pg_window['progressbar_f']
+						process_count = pg_window['progressbar_p']
+
+						pg_window.read(timeout=10)
+
+						process_count.UpdateBar(0)
+						progress_bar.UpdateBar(0)
+
+						pg_window['file_c'].update('(0/%d)' % total_files)
+						pg_window['proc_c'].update('(0/%d)' % (total_files*3))
+
+						pg_window.read(timeout=10)
+
+						# progress bar event loop
+						while True:
+							event, values = pg_window.read(timeout=100)
+
+							if event in (None, 'Exit', 'Cancel'):
+								print('CANCELLED, EXITING')
+								break
+							elif event.startswith('Start'):
+								try:
+									print('STARTING THREAD')
+									threading.Thread(target=main_op_thread, 
+														args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, DEBUG_MODE, gui_queue), 
+														daemon=True).start()
+								except Exception as e:
+									print('Error starting work thread')
+							elif event == 'Check responsive':
+								print('GUI is responsive')
+
+							# check for incoming messages from thread
+							if DEBUG_MODE:
+								try:
+									message = gui_queue.get_nowait()
+								except queue.Empty:
+									message = None
+
+								# display message from queue
+								if message:
+									print(message)
+
+						pg_window.close()
+						# try:
+							
+
+						# except:
+						# 	print('################## ERROR DURING DATA PROCESSING ################')
+						# 	exit(-1)
+
+						# TODO: SEPARATELY CALL EACH FUNCTION IN THE PIPELINE
+						# TODO: UPDATE THE GUI AND THE USER ON THE PROCESS OF EACH FUNCTION CALL
+						# TODO: UPSCALE THE GUI SIZE SO IT IS NOT TIGHTLY FIT TO THE CURRENT GUI ELEMENTS -> MAKE IT MORE USER-FRIENDLY AND NAVIGABLE
+
+
+
+						if ld_event in (None, 'Cancel'):
+							load_data_popup.close()
+							break
+							if event in (None, 'Exit'):
+								break
+					else:
+						print('non .wav files detected')
+						wav_only_warning = True
+
+				if event in (None, 'Exit'):
+					main_window.close()
 
 
 
 
-load_data_popup.close()
-main_window.close()
+	load_data_popup.close()
+	main_window.close()
+
+main()
