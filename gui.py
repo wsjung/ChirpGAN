@@ -48,11 +48,11 @@ def create_main_window(settings):
 
 	main_layout = [
 	[sg.Text('Main Menu')],
-	[sg.Button('Load Data')],
-	[sg.Exit(), sg.Button('Settings')]
+	[sg.Button('Load Data',size=(30,2)), sg.Button('Settings')],
+	[sg.Exit()]
 	]
 
-	return sg.Window('Main Menu', main_layout)
+	return sg.Window('ChirpGAN', main_layout, resizable = False)
 
 
 #ability to load setings from JSON
@@ -67,6 +67,10 @@ def load_settings(settings_file, default_settings):
 		save_settings(settings_file, settings, None)
 	return settings
 
+def default_settings(settings_file):
+	with open(settings_file, 'w') as f:
+		jsondump(DEFAULT_SETTINGS, f)
+	sg.popup('Settings defaulted')
 
 #write user settings to JSON
 def save_settings(settings_file, settings, values, popup=False):
@@ -99,10 +103,11 @@ def create_settings_window(settings):
 				[sg.Checkbox('Developer Mode', default = debug, key='-DEBUG-')],
 				[sg.Checkbox('Web Notification', default = notify_run, change_submits = True, enable_events=True, key ='-NOTIFY-')],
 				[sg.Text('\tLink: '), sg.Text(notifylink, size=(30,1), enable_events=True, justification='l', key='-NOTIFYLINK-')],
-				[sg.Button('Save'), sg.Button('Cancel')]
+				[sg.Button('Default Settings')],
+				[sg.Button('Save'), sg.Text('		     '), sg.Button('Cancel')]
 				]
 
-	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True)
+	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True, resizable = False)
 
 	for key in SETTINGS_KEYS_TO_ELEMENT_KEYS:   # update window with the values read from settings file
 		try:
@@ -142,7 +147,7 @@ def create_prog_bar_popup(settings, total_files):
 		pg_layout.insert(3, debug_output)
 		pg_layout.insert(3, debug_text)
 
-	return sg.Window('File Processing').Layout(pg_layout)
+	return sg.Window('File Processing',pg_layout,resizable = False)
 
 
 # creates data loading popup window based on boolean to render warning message
@@ -156,7 +161,7 @@ def create_load_data_popup(settings, wav_warning=False, empty_warning=False):
 	load_data_layout = [
 		[sg.Text('Folder of bird vocalization files to load: ')],
 		[sg.Input(key='_FILES_'), sg.FolderBrowse()], 
-		[sg.OK(), sg.Cancel()]
+		[sg.OK(), sg.Text('				      '), sg.Cancel()]
 	]
 
 	if wav_warning:
@@ -296,6 +301,15 @@ def main():
 				if event == 'Cancel': 
 					settings_window.close()
 					break
+
+				if event == 'Default Settings':
+					settings_window.close()
+
+					main_window.close()
+					main_window = None
+
+					# default settings
+					default_settings(SETTINGS_FILE)
 				
 				if event == 'Save':
 					settings_window.close()
@@ -517,8 +531,7 @@ def main():
 
 
 
-	load_data_popup.close()
-	main_window.close()
+
 
 if __name__ == '__main__':
 	main()
