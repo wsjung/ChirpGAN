@@ -290,11 +290,12 @@ def main():
 			event, values = create_settings_window(settings).read(close=True)
 			if event == 'Save':
 				main_window.close()
-				mainain_window = None
+				main_window = None
 				save_settings(SETTINGS_FILE, settings, values)
 				
 				change_settings = True
-			break
+			
+			continue
 
 		if event in ('Load Data'):
 			#pop up load window
@@ -481,4 +482,5 @@ def main():
 	load_data_popup.close()
 	main_window.close()
 
-main()
+if __name__ == '__main__':
+	main()
