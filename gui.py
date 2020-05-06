@@ -39,17 +39,20 @@ import threading
 
 #default settings parameters
 SETTINGS_FILE = os.path.join(os.path.dirname('./'), r'.settings_file.cfg')
-DEFAULT_SETTINGS = {'theme': sg.theme(), 'debug': False, 'notify': False, 'notifylink': None}
+DEFAULT_SETTINGS = {'theme': "DarkBlue3", 'debug': False, 'notify': False, 'notifylink': None}
 SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-', 'debug': '-DEBUG-', 'notify' : '-NOTIFY-', 'notifylink' : '-NOTIFYLINK-'}
 
+nav_btn_size = (7,1)
 
 def create_main_window(settings):
 	sg.theme(settings['theme'])
 
 	main_layout = [
 	[sg.Text('Main Menu')],
-	[sg.Button('Load Data',size=(30,2)), sg.Button('Settings')],
-	[sg.Exit()]
+	[sg.Button('Load Data',size=(30,2))],
+	[sg.Button('Create Dataset',size=(30,2))],
+	[sg.Button('Train GAN',size=(30,2))],
+	[sg.Exit(size=nav_btn_size), sg.Button('Settings', size=nav_btn_size)]
 	]
 
 	return sg.Window('ChirpGAN', main_layout, resizable = False)
@@ -98,22 +101,23 @@ def save_settings(settings_file, settings, values, popup=False):
 
 #create settings window
 def create_settings_window(settings):
-	sg.theme(settings['theme'])
 
-
+	theme = settings['theme']
 	debug = settings['debug']
 	notify_run = settings['notify']
 	notifylink = settings['notifylink']
+	
+	sg.theme(theme)
 
 	def TextLabel(text): return sg.Text(text+':', justification='l', size=(5,1))
 
 	layout = [  [sg.Text('Settings', font='Any 15')],
-				[TextLabel('Theme'), sg.Combo(sg.theme_list(), size=(20, 20), key='-THEME-')],
+				[TextLabel('Theme'), sg.Combo(sg.theme_list(), default_value = theme, size=(20, 20), key='-THEME-')],
 				[sg.Checkbox('Developer Mode', default = debug, key='-DEBUG-')],
 				[sg.Checkbox('Web Notification', default = notify_run, change_submits = True, enable_events=True, key ='-NOTIFY-')],
 				[sg.Text('\tLink: '), sg.Text(notifylink, size=(30,1), enable_events=True, justification='l', key='-NOTIFYLINK-')],
-				[sg.Button('Default Settings')],
-				[sg.Button('Save'), sg.Text('		     '), sg.Button('Cancel')]
+				[sg.Button('Default Settings', size=(nav_btn_size[0]*2,nav_btn_size[1]))],
+				[sg.Button('Save', size=nav_btn_size), sg.Button('Cancel', size=nav_btn_size)]
 				]
 
 	window = sg.Window('Settings', layout, keep_on_top=True, finalize=True, resizable = False)
@@ -147,7 +151,7 @@ def create_prog_bar_popup(settings, total_files):
 			sg.Text('Number of processes:',  size=(20,None)),
 			sg.Text(size=(10,None), key='proc_c')
 		],
-		[sg.Button('Start Op'), sg.Button('Check responsive'), sg.Cancel()]
+		[sg.Button('Start Op'), sg.Cancel(size=nav_btn_size)]
 	]
 
 	if debug:
@@ -169,8 +173,8 @@ def create_load_data_popup(settings, wav_warning=False, empty_warning=False):
 
 	load_data_layout = [
 		[sg.Text('Folder of bird vocalization files to load: ')],
-		[sg.Input(key='_FILES_'), sg.FolderBrowse()], 
-		[sg.OK(), sg.Text('				      '), sg.Cancel()]
+		[sg.Input(key='_FILES_'), sg.FolderBrowse(size=nav_btn_size)], 
+		[sg.OK(size=nav_btn_size), sg.Cancel(size=nav_btn_size)]
 	]
 
 	if wav_warning:
@@ -271,8 +275,6 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			i+=1
 
 
-
-
 ###############
 #### ENTRY ####
 ###############
@@ -298,6 +300,10 @@ def main():
 			break
 
 		if event in ('Settings'):
+			# close main window
+			main_window.close()
+			main_window = None
+			
 			settings_window = create_settings_window(settings)
 
 			while True:
@@ -305,27 +311,24 @@ def main():
 				print(event)
 				print(values)
 
-				if event in (None, 'Quit'):
+				if event in (None, 'Quit', 'Cancel'):
 					settings_window.close()
 					break
+					# break
 
-				if event == 'Cancel': 
-					settings_window.close()
-					break
+				# if event in ('Cancel'): 
+				# 	settings_window.close()
+
 				if event == 'Default Settings':
 					settings_window.close()
 
-					main_window.close()
-					main_window = None
-
 					# default settings
 					default_settings(SETTINGS_FILE)
+					settings = load_settings(SETTINGS_FILE, DEFAULT_SETTINGS)
+
 				
 				if event == 'Save':
 					settings_window.close()
-
-					main_window.close()
-					main_window = None
 					
 					# for some reason values does not contain the key for Text elements
 					values['-NOTIFYLINK-'] = settings_window['-NOTIFYLINK-'].DisplayText
@@ -359,17 +362,18 @@ def main():
 
 					webbrowser.open_new(link)
 
-			
 			continue
 
 		if event in ('Load Data'):
-			#pop up load window
+			main_window.close() # close main menu
+			main_window = None
 
 			# boolean for showing warning message in load data layout
 			select_folder_warning = False
 			wav_only_warning = False
 
 			while True: 
+				#pop up load window
 				load_data_popup = create_load_data_popup(settings, wav_only_warning, select_folder_warning)
 				ld_event, ld_values = load_data_popup.read()
 				#print('ld_event: %s\nld_values: %s' % (ld_event, ld_values))
@@ -492,6 +496,7 @@ def main():
 
 							if event in (None, 'Exit', 'Cancel'):
 								print('CANCELLED, EXITING')
+								sg.popup_quick_message('Cancelled. Returning to main menu.')
 								break
 							elif event.startswith('Start'):
 								try:
@@ -501,8 +506,8 @@ def main():
 														daemon=True).start()
 								except Exception as e:
 									print('Error starting work thread')
-							elif event == 'Check responsive':
-								print('GUI is responsive')
+							# elif event == 'Check responsive':
+							# 	print('GUI is responsive')
 
 							# check for incoming messages from thread
 							if DEBUG_MODE:
