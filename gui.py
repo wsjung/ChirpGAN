@@ -55,6 +55,15 @@ def create_main_window(settings):
 	return sg.Window('ChirpGAN', main_layout, resizable = False)
 
 
+# load single specified setting
+def load_setting(settings_file, key):
+	try:
+		with open(settings_file, 'r') as f:
+			settings = jsonload(f)
+	except Exception as e:
+		print('this should never print')
+	return settings[key]
+
 #ability to load setings from JSON
 def load_settings(settings_file, default_settings):
 	try:
@@ -293,6 +302,8 @@ def main():
 
 			while True:
 				event, values = settings_window.read()
+				print(event)
+				print(values)
 
 				if event in (None, 'Quit'):
 					settings_window.close()
@@ -301,7 +312,6 @@ def main():
 				if event == 'Cancel': 
 					settings_window.close()
 					break
-
 				if event == 'Default Settings':
 					settings_window.close()
 
@@ -326,15 +336,18 @@ def main():
 
 					break
 
-				if values['-NOTIFY-']: # register using notify-run
-					notify = Notify()
-					endpointinfo = notify.register()
+				print(load_setting(SETTINGS_FILE, 'notify'))
 
-					endpointlink = str(endpointinfo).split('\n')[0][10:]
+				if event == '-NOTIFY-': # register using notify-run
+					if values['-NOTIFY-'] and not load_setting(SETTINGS_FILE, 'notify'):
+						notify = Notify()
+						endpointinfo = notify.register()
 
-					settings_window['-NOTIFYLINK-'].Update(endpointlink)
-				else:
-					settings_window['-NOTIFYLINK-'].Update('N/A')
+						endpointlink = str(endpointinfo).split('\n')[0][10:]
+
+						settings_window['-NOTIFYLINK-'].Update(endpointlink)
+					else:
+						settings_window['-NOTIFYLINK-'].Update('N/A')
 
 				if event == '-NOTIFYLINK-' and values['-NOTIFY-']: # clicked on link
 					import webbrowser
