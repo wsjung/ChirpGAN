@@ -281,7 +281,7 @@ def define_composite(discriminators, generators):
 # load dataset
 def load_real_samples(filename):
     # load dataset
-    data = load(filename)
+    data = load(filename, allow_pickle=True)
     # extract numpy array
     X = data['arr_0']
     # convert from ints to floats
@@ -399,12 +399,14 @@ def save_discriminator_model(status, d_model):
 
 # train the generator and discriminator
 def train(g_models, d_models, gan_models, dataset, latent_dim, e_norm, e_fadein, n_batch):
+    print('Beginning training..')
     # fit the baseline model
     g_normal, d_normal, gan_normal = g_models[0][0], d_models[0][0], gan_models[0][0]
     # scale dataset to appropriate size
     gen_shape = g_normal.output_shape
     scaled_data = scale_dataset(dataset, gen_shape[1:])
-    print('Scaled Data', scaled_data.shape)
+    # print('Scaled Data', scaled_data.shape)
+    print('Training resolution: ', gen_shape)
     # train normal or straight-through models
     train_epochs(g_normal, d_normal, gan_normal, scaled_data, latent_dim, e_norm[0], n_batch[0])
     summarize_performance('tuned', g_normal, latent_dim)
@@ -418,7 +420,8 @@ def train(g_models, d_models, gan_models, dataset, latent_dim, e_norm, e_fadein,
         # scale dataset to appropriate size
         gen_shape = g_normal.output_shape
         scaled_data = scale_dataset(dataset, gen_shape[1:])
-        print('Scaled Data', scaled_data.shape)
+        # print('Scaled Data', scaled_data.shape)
+        print('Training resolution: ', gen_shape)
         # train fade-in models for next level of growth
         train_epochs(g_fadein, d_fadein, gan_fadein, scaled_data, latent_dim, e_fadein[i], n_batch[i], True)
         summarize_performance('faded', g_fadein, latent_dim)
@@ -554,7 +557,7 @@ def load_and_train(d_modelnames, g_modelnames):
     train_saved_models(d_models, g_models, gan_models, dataset, latent_dim, n_epochs, n_epochs, n_batch, (len(d_modelnames)+1) / 2)
 
 
-def main():
+def gan_train_main(dataset_file):
     # number of growth phases, e.g. 6 == [4, 8, 16, 32, 64, 128]
     n_blocks = 4
     # size of the latent space
@@ -566,7 +569,9 @@ def main():
     # define composite models
     gan_models = define_composite(d_models, g_models)
     # load image data
-    dataset = load_real_samples('../flooded_pngs/bird_data.npz')
+    # dataset = load_real_samples('../flooded_pngs/bird_data.npz')
+    print('Loading dataset...')
+    dataset = load_real_samples(dataset_file)
     print('Loaded', dataset.shape)
     # train model
     n_batch = [16, 16, 16, 8]# , 4, 4]
@@ -576,11 +581,21 @@ def main():
 
 def main_load_train():
     # lowest res to highest res, [tuned,faded]
-    
-    # FILL IN YOUR FILES IN ORDER HERE
-    # [LOWEST RES, 2ND_LOWEST_RES_TUNED, 2ND_LOWEST_RES_FADED, ...]
-    d_model_names = []
-    g_model_names = []
+    d_modelnames = [
+        'disc_model_032x075-tuned_19-04-2020_12-47-06_AM.h5',
+        'disc_model_064x150-tuned_19-04-2020_11-24-20_AM.h5',
+        'disc_model_064x150-faded_19-04-2020_06-12-07_AM.h5',
+        'disc_model_128x300-tuned_29-04-2020_10-10-05_AM.h5',
+        'disc_model_128x300-faded_28-04-2020_02-11-13_PM.h5',
+        ]
+
+    g_modelnames = [
+        'gen_model_032x075-tuned_19-04-2020_12-47-05_AM.h5',
+        'gen_model_064x150-tuned_19-04-2020_11-24-20_AM.h5',
+        'gen_model_064x150-faded_19-04-2020_06-12-07_AM.h5',
+        'gen_model_128x300-tuned_29-04-2020_10-10-04_AM.h5',
+        'gen_model_128x300-faded_28-04-2020_02-11-12_PM.h5',
+    ]
 
     load_and_train(d_modelnames, g_modelnames)
 
@@ -603,6 +618,6 @@ def main_generate(modelname, latent_dim = 100, n_samples=25):
 
 
 if __name__ == '__main__':
-    # main()
+    # gan_train_main()
     main_load_train()
     # main_generate(modelname='model_064x150-faded_11-04-2020_12-21-45_AM.h5')

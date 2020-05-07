@@ -8,6 +8,7 @@ import time
 
 from scalogram.pipeline import WavPipeline
 from scalogram.dataset import Dataset
+from scalogram.testgan import *
 
 #for settings
 from json import (load as jsonload, dump as jsondump)
@@ -46,21 +47,33 @@ DEFAULT_SETTINGS = {'theme': "DarkBlue3", 'debug': False, 'notify': False, 'noti
 SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-', 'debug': '-DEBUG-', 'notify' : '-NOTIFY-', 'notifylink' : '-NOTIFYLINK-'}
 
 nav_btn_size = (7,1)
+menu_btn_size = (30,2)
 
 def create_main_window(settings):
 	sg.theme(settings['theme'])
 
 	main_layout = [
 	[sg.Text('Main Menu')],
-	[sg.Button('Process Data',size=(30,2))],
-	[sg.Button('Create Dataset',size=(30,2))],
-	[sg.Button('Train GAN',size=(30,2))],
+	[sg.Button('Process Data',size=menu_btn_size)],
+	[sg.Button('Create Dataset',size=menu_btn_size)],
+	[sg.Button('GAN',size=menu_btn_size)],
 	[sg.Exit(size=nav_btn_size), sg.Button('Settings', size=nav_btn_size)]
 	]
 
 	return sg.Window('ChirpGAN', main_layout, resizable = False)
 
+def create_gan_window():
+	
+	gan_layout = [
+		[sg.Text("GAN Menu")],
+		[sg.Button("Train new models", size=menu_btn_size)],
+		[sg.Button("Generate images", size=menu_btn_size)],
+		[sg.Button("Cancel", size=nav_btn_size)]
+	]
 
+	return sg.Window('GAN Menu', gan_layout, resizable=True)
+
+	
 # load single specified setting
 def load_setting(settings_file, key):
 	try:
@@ -163,6 +176,19 @@ def create_prog_bar_popup(settings, total_files):
 		pg_layout.insert(3, debug_text)
 
 	return sg.Window('File Processing',pg_layout,resizable = False)
+
+
+# GAN training progress window
+def create_gan_train_window():
+
+	gan_train_layout = [
+		[sg.Text('GAN training in progress!')],
+		[sg.Text('Progress:')],
+		[sg.Output(size=(80,10))],
+		[sg.Button('Start', size=nav_btn_size), sg.Button('Cancel', size=nav_btn_size)]
+	]
+
+	return sg.Window('New GAN model in training', gan_train_layout, resizable=False)
 
 
 # creates data loading popup window based on boolean to render warning message
@@ -278,6 +304,11 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 	# time.sleep(5)
 	
 
+def gan_train_thread(dataset):
+
+	gan_train_main(dataset)
+
+
 
 ###############
 #### ENTRY ####
@@ -380,6 +411,10 @@ def main():
 
 			continue
 
+
+		###################################
+		####### CREATE DATASET FLOW #######
+		###################################
 		if event in ('Create Dataset'):
 			folder_path = sg.popup_get_folder("Please select the folder of flooded scalogram files", title="Select Folder for dataset")
 
@@ -389,6 +424,74 @@ def main():
 
 			sg.popup('Dataset Created!')
 
+		#########################
+		####### GAN FLOW ########
+		#########################
+		if event in ('GAN'):
+			main_window.close()
+			main_window = None
+
+			gan_window = None
+
+			while True:
+				
+				if gan_window is None:
+					gan_window = create_gan_window()
+				else:
+					break
+				
+				gan_event, gan_values = gan_window.read()
+
+				if gan_event in (None, 'Quit', 'Cancel'):
+					gan_window.close()
+					break
+
+				if gan_event.startswith('Train'): # train new models
+					gan_window.close()
+
+					# select dataset file
+					dataset = sg.popup_get_file("Please select a .npz dataset file", title="Train new GAN model: Load Dataset")
+
+					if dataset in (None, 'Cancel'): 
+						gan_window = None
+						continue
+
+					gan_train_window = create_gan_train_window()
+
+					gan_train_started = False
+					thread = None
+
+					while True:
+						gt_event, gt_values = gan_train_window.read(timeout=10)
+
+						if gt_event in (None, 'Quit', 'Cancel'):
+							if gan_train_started: thread.join()
+							gan_train_window.close()
+							gan_train_window = None
+							gan_train_started = False
+
+							sg.popup_quick_message('Cancelled. Returning to main menu.', keep_on_top=True, auto_close_duration=2)
+							time.sleep(2)
+
+							break
+
+						if gt_event in ('Start') and not gan_train_started:
+							gan_train_main(dataset)
+							gan_train_started = True
+
+						# if gt_event in ('Start') and not gan_train_started:
+						# 	try:
+						# 		thread = threading.Thread(target=gan_train_main, args=(dataset,), daemon=True)
+						# 		thread.start()
+						# 		gan_train_started = True
+						# 	except Exception as e:
+						# 		print('Error starting thread: ', e)
+
+
+
+
+
+			
 
 
 		if event in ('Process Data'):

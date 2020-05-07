@@ -41,7 +41,7 @@ class DataSplitter:
                 os.system('ffmpeg -i %s -f segment -segment_time %d -c copy ./%s/%s%%01d.wav' % (fwav, duration, save_dir, fname))
 
                 print('compressing wav file')
-                os.system('ffmpeg -i %s %s.mp3' % (fwav, os.path.join(wav_dir, fname)))
+                # os.system('ffmpeg -i %s %s.mp3' % (fwav, os.path.join(wav_dir, fname)))
                 #print('deleting wav file')
                 #os.system('rm %s' % fwav)
 

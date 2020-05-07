@@ -1,8 +1,14 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import sys
-from PIL import Image
+# from PIL import Image
 from queue import Queue
+
+import gc
+
 
 class Floodfill:
 
@@ -10,8 +16,8 @@ class Floodfill:
 		if type(source) == str:
 			if source.lower().endswith('.png'):
 				self.name = source[:-4]
-				img = Image.open(source)
-				tmp = np.array(img)
+				# img = Image.open(source)
+				# tmp = np.array(img)
 
 				# display image
 				"""
@@ -25,17 +31,29 @@ class Floodfill:
 				#plt.close(f)
 
 
-				
 				# bucket fill threshold range
 				for threshold in range(10,11):
+					# img = Image.open(source)
+					img = mpimg.imread(source)
+					png_data = np.array(img)
+					# img.close()
+					# gc.collect()
+
+					print(png_data.shape)
+
+
+					print("image loaded")
+
 					print('### Testing threshold = %d ###' % threshold, flush=True)
 
-					img = Image.open(source)
-					png_data = np.array(img)
+					# self.png_data = png_data
 
-					#flooded_png = Floodfill.flood_iterative(png_data[:,12000:20000], xy=(50,50), target_color=255, replacement_color=0, threshold=threshold)
-					flooded_png = self.flood_iterative(png_data, xy=(50,50), target_color=255, replacement_color=0, threshold=threshold)
+					flooded_png = self.flood_iterative(png_data, xy=(50,50), target_color=0, replacement_color=255, threshold=threshold)
 					self.png_data = flooded_png
+
+					print('self.png_data.shape: ', self.png_data.shape)
+
+					print("image flooded")
 
 					#print(flooded_png)
 					#print(flooded_png.dtype)
@@ -86,8 +104,10 @@ class Floodfill:
 		print('image shape: ', image.shape)
 
 		if target_color == replacement_color:	# already the specified replacement_color 
+			print('replacement color is already target color')
 			return
 		elif not self.within_threshold(image[x,y], target_color, threshold):	# not the target color we want
+			print('not the target color we want')
 			return	
 		else:
 			init_target_color = image[x,y]	# set initial target color
@@ -96,24 +116,15 @@ class Floodfill:
 			sq = SetQueue()	# queue for future locations
 			sq.put(xy)
 
-			
-			#i = 0
-
-
+			# i = 0
 			while not sq.empty():
-				#i += 1
-
-				#if i%10000==0:
-				#	plt.figure()
-				#	plt.imshow(image, cmap='inferno')
-				#	plt.show()
-
-
-
+				# i+=1
 
 				loc = sq.get()	# get next location
 				x = loc[0]
 				y = loc[1]
+				loc = None
+				gc.collect()
 				
 				if self.within_image(x, y, image.shape):
 					if self.within_threshold(image[x,y], init_target_color, threshold):	# replace color if within target threshold
@@ -121,15 +132,20 @@ class Floodfill:
 				
 					# add neighbors to the queue
 					sq.put((x+1,y))
-					sq.put((x+1,y+1))
-					sq.put((x+1,y-1))
+					# sq.put((x+1,y+1))
+					# sq.put((x+1,y-1))
 					sq.put((x-1,y))
-					sq.put((x-1,y+1))
-					sq.put((x-1,y-1))
+					# sq.put((x-1,y+1))
+					# sq.put((x-1,y-1))
 					sq.put((x,y+1))
 					sq.put((x,y-1))
+			
+			# print('FINISHED WITH WHILE LOOP\ni=%d' % i)
+		
 
 		# self.png_data = image
+		
+		print("image flooded")
 		return image
 
 
@@ -165,14 +181,19 @@ class Floodfill:
 			return
 
 	def write_to_png(self, filename=None):
-		from scipy.misc import toimage
+		# from scipy.misc import toimage
+		# print('writing to PNG')
+
+		# if filename == None: filename == self.name + "_flooded.png"
+
+		# im = toimage(self.png_data)
+		# im.save(filename)
+		# im.close()
 		print('writing to PNG')
-
 		if filename == None: filename == self.name + "_flooded.png"
-
-		im = toimage(self.png_data)
-		im.save(filename)
-		im.close()
+		
+		import png
+		png.from_array(self.png_data, mode='L').save(filename)
 
 		
 
