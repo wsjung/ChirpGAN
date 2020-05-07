@@ -23,11 +23,14 @@ from keras.layers import Add
 from keras.constraints import max_norm
 from keras.initializers import RandomNormal, he_normal
 from keras import backend
-from matplotlib import pyplot
 from keras.models import load_model
 
-
 from datetime import datetime
+
+
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('TkAgg')
  
 # pixel-wise feature vector normalization layer
 class PixelNormalization(Layer):
@@ -374,13 +377,13 @@ def summarize_performance(status, g_model, latent_dim, n_samples=25):
     # plot real images
     square = int(sqrt(n_samples))
     for i in range(n_samples):
-        pyplot.subplot(square, square, 1 + i)
-        pyplot.axis('off')
-        pyplot.imshow(X[i].reshape(X[i].shape[0], X[i].shape[1]))
+        plt.subplot(square, square, 1 + i)
+        plt.axis('off')
+        plt.imshow(X[i].reshape(X[i].shape[0], X[i].shape[1]))
     # save plot to file
     filename1 = 'plot_%s_%s.png' % (name,datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"))
-    pyplot.savefig(filename1)
-    pyplot.close()
+    plt.savefig(filename1)
+    plt.close()
     # save the generator model
     filename2 = 'gen_model_%s_%s.h5' % (name,datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"))
     g_model.save(filename2)
@@ -608,16 +611,20 @@ def main_generate(modelname, latent_dim = 100, n_samples=25):
     # normalize pixel values to the range [0,1]
     X = (X - X.min()) / (X.max() - X.min())
 
+    fig = plt.figure(figsize=(5,5))
+
     # plot real images
     square = int(sqrt(n_samples))
     for i in range(n_samples):
-        pyplot.subplot(square, square, 1 + i)
-        pyplot.axis('off')
-        pyplot.imshow(X[i].reshape(X[i].shape[0], X[i].shape[1]))
-    pyplot.show()
+        plt.subplot(square, square, 1 + i)
+        plt.axis('off')
+        plt.imshow(X[i].reshape(X[i].shape[0], X[i].shape[1]))
+    # plt.show()
+    return fig
 
 
 if __name__ == '__main__':
     # gan_train_main()
-    main_load_train()
+    # main_load_train()
     # main_generate(modelname='model_064x150-faded_11-04-2020_12-21-45_AM.h5')
+    main_generate(modelname='gen_model_128x300-tuned_29-04-2020_10-10-04_AM.h5')

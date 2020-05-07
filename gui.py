@@ -10,6 +10,11 @@ from scalogram.pipeline import WavPipeline
 from scalogram.dataset import Dataset
 from scalogram.testgan import *
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib
+matplotlib.use('TkAgg')
+
 #for settings
 from json import (load as jsonload, dump as jsondump)
 
@@ -189,6 +194,26 @@ def create_gan_train_window():
 	]
 
 	return sg.Window('New GAN model in training', gan_train_layout, resizable=False)
+
+def create_plt_window():
+
+	plt_window_layout = [
+		[sg.Text('Generated scalograms:')],
+		[sg.Canvas(key='-CANVAS-')],
+		[sg.Button('Ok', size=nav_btn_size), sg.Button('New', size=nav_btn_size), sg.Button('Save', size=nav_btn_size)]
+	]
+
+	return sg.Window('GAN: Generate images', plt_window_layout, element_justification='center', finalize=True)
+
+def draw_figure(canvas, figure):
+	figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+	figure_canvas_agg.draw()
+	figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+	return figure_canvas_agg
+
+def generate_images_grid(modelname):
+	fig = main_generate(modelname)
+	return fig
 
 
 # creates data loading popup window based on boolean to render warning message
@@ -446,6 +471,51 @@ def main():
 					gan_window.close()
 					break
 
+				if gan_event.startswith('Generate'): # generate images
+					gan_window.close()
+
+					modelname = sg.popup_get_file("Please select a trained GAN model", title="Generate images from GAN model")
+
+					if modelname in (None, 'Cancel'):
+						gan_window = None
+						continue
+
+					plt_window = create_plt_window()
+					fig = generate_images_grid(modelname)
+					fig_canvas_agg = draw_figure(plt_window['-CANVAS-'].TKCanvas, fig)
+
+					while True:
+						plt_event, plt_values = plt_window.read()
+
+						if plt_event in (None, 'Quit', 'Cancel', 'Ok'):
+							plt_window.close()
+							plt_window = None
+							break
+
+
+						if plt_event in ('New'):
+							fig = generate_images_grid(modelname)
+							fig_canvas_agg.get_tk_widget().pack_forget()
+							fig_canvas_agg = draw_figure(plt_window['-CANVAS-'].TKCanvas, fig)
+							_, _ = plt_window.read(timeout=10)
+							continue
+
+
+						if plt_event in ('Save'):
+							namefile = sg.PopupGetFile('Enter filename', save_as=True)
+
+							if namefile:
+								try:
+									fig.savefig(namefile)
+									plt_window.close()
+									plt_window = None
+									sg.popup_quick_message('Image saved!', keep_on_top=True, auto_close_duration=2)
+									time.sleep(2)
+									break
+								except Exception as e:
+									sg.popup('Error saving figure')
+										
+
 				if gan_event.startswith('Train'): # train new models
 					gan_window.close()
 
@@ -486,13 +556,6 @@ def main():
 						# 		gan_train_started = True
 						# 	except Exception as e:
 						# 		print('Error starting thread: ', e)
-
-
-
-
-
-			
-
 
 		if event in ('Process Data'):
 			main_window.close() # close main menu
