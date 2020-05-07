@@ -218,7 +218,7 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			mp3name = os.path.join(wave_sav_dir, fname + '.mp3')		# .mp3 name
 
 
-			if debug:				
+			if debug:
 				gui_queue.put('wavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
 				gui_queue.put('WAV TO SCL\n')
 
@@ -372,9 +372,17 @@ def main():
 			select_folder_warning = False
 			wav_only_warning = False
 
+			load_data_popup = None
+
 			while True: 
 				#pop up load window
-				load_data_popup = create_load_data_popup(settings, wav_only_warning, select_folder_warning)
+
+				if load_data_popup is None:
+					load_data_popup = create_load_data_popup(settings, wav_only_warning, select_folder_warning)
+				else:
+					break
+
+				
 				ld_event, ld_values = load_data_popup.read()
 				#print('ld_event: %s\nld_values: %s' % (ld_event, ld_values))
 
@@ -382,10 +390,13 @@ def main():
 					load_data_popup.close()
 					break
 			
-				if ld_event in ('OK') and ld_values['_FILES_']=='': # clicked OK without selecting folder
-					load_data_popup.close()
-					select_folder_warning = True
-				elif ld_event in ('OK'):
+				if ld_event in ('OK'): 	# clicked OK without selecting folder
+					if ld_values['_FILES_']=='':
+						load_data_popup.close()
+						load_data_popup = None
+						select_folder_warning = True
+						continue
+
 					select_folder_warning = False
 					
 					# close load_data_popup
@@ -403,16 +414,14 @@ def main():
 					for file_name in os.listdir(wave_dir):
 						if file_name.endswith(".wav"):
 							print(file_name)
-
-					print('hello')
 					
 					# check for non .wav files in selected folder
 					total_num_files = len(os.listdir(wave_dir))
 					total_num_wavs = len(glob.glob1(wave_dir, '*.wav'))
 					# if non .wav files exist, warn user and return to load_data window
-					if total_num_files == total_num_wavs:
-						wav_only_warning = False
+					wav_only_warning = total_num_files != total_num_wavs
 
+					if not wav_only_warning:
 
 						#create file storing wav file transformations
 						if not os.path.exists('./png_scalogram'):
@@ -429,10 +438,10 @@ def main():
 						### PASS FILES TO DATA PIPELINE						 ###
 						###########################################################
 
-						print('SPLITTING\n')
+						# print('SPLITTING\n')
 
 						org_wav = os.stat(wave_dir + "/test.wav")
-						print(f'File size in Bytes is {org_wav.st_size}')
+						# print(f'File size in Bytes is {org_wav.st_size}')
 
 
 						start = time.time()
@@ -491,19 +500,24 @@ def main():
 						pg_window.read(timeout=10)
 
 						# progress bar event loop
+						started = False
 						while True:
 							event, values = pg_window.read(timeout=100)
 
 							if event in (None, 'Exit', 'Cancel'):
 								print('CANCELLED, EXITING')
-								sg.popup_quick_message('Cancelled. Returning to main menu.')
+								sg.popup_quick_message('Cancelled. Returning to main menu.', auto_close_duration=1)
+								time.sleep(0.5)
 								break
-							elif event.startswith('Start'):
+
+							elif event.startswith('Start') and not started: # check for thread already spun up
 								try:
 									print('STARTING THREAD')
 									threading.Thread(target=main_op_thread, 
 														args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window, DEBUG_MODE, gui_queue, process_count), 
 														daemon=True).start()
+									
+									started = True
 								except Exception as e:
 									print('Error starting work thread')
 							# elif event == 'Check responsive':
@@ -520,6 +534,9 @@ def main():
 								if message:
 									print(message)
 
+									# CHECK FOR SPECIFIC MESSAGES TO UPDATE PROGRESS BAR VALUES
+									
+
 						pg_window.close()
 						# try:
 							
@@ -532,22 +549,15 @@ def main():
 						# TODO: UPDATE THE GUI AND THE USER ON THE PROCESS OF EACH FUNCTION CALL
 						# TODO: UPSCALE THE GUI SIZE SO IT IS NOT TIGHTLY FIT TO THE CURRENT GUI ELEMENTS -> MAKE IT MORE USER-FRIENDLY AND NAVIGABLE
 
-
-
 						if ld_event in (None, 'Cancel'):
 							load_data_popup.close()
 							break
-							if event in (None, 'Exit'):
-								break
 					else:
 						print('non .wav files detected')
-						wav_only_warning = True
+						load_data_popup = None
 
 				if event in (None, 'Exit'):
 					main_window.close()
-
-
-
 
 
 
