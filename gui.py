@@ -7,6 +7,7 @@ import glob
 import time
 
 from scalogram.pipeline import WavPipeline
+from scalogram.dataset import Dataset
 
 #for settings
 from json import (load as jsonload, dump as jsondump)
@@ -51,7 +52,7 @@ def create_main_window(settings):
 
 	main_layout = [
 	[sg.Text('Main Menu')],
-	[sg.Button('Load Data',size=(30,2))],
+	[sg.Button('Process Data',size=(30,2))],
 	[sg.Button('Create Dataset',size=(30,2))],
 	[sg.Button('Train GAN',size=(30,2))],
 	[sg.Exit(size=nav_btn_size), sg.Button('Settings', size=nav_btn_size)]
@@ -189,7 +190,6 @@ def create_load_data_popup(settings, wav_warning=False, empty_warning=False):
 #TODO: allow ability to select and load multiple files
 
 
-
 ####################################
 ### FUNCTION TO BE MULTITHREADED ### sourced from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Multithreaded_Long_Tasks.py
 ####################################
@@ -201,9 +201,8 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 	"""
 	i=0
 	gui_queue.put("LMAO")
-	time.sleep(5)
+	# time.sleep(5)
 	for splitwav in listwavs:
-
 		if splitwav.endswith('.wav'):
 
 
@@ -243,38 +242,10 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			## message
 			gui_queue.put('SCL TO PNG\n')
 			
-
-			import png
-			import numpy as np
-			from PIL import Image
-			# from scipy.misc import toimage
-			
-
-			# temp = np.random.rand(256,2000)
-			# png.from_array(temp, mode='L').save(os.path.join(png_sav_dir, 'lol.png'))
-			# im = Image.fromarray(temp, mode='L')
-			# im.save(os.path.join(png_sav_dir, "lol.png"))
-			
-			data, bytedata = WavPipeline.scalToPng(fname,scalname,scalgzname, png_sav_dir)
-
-			print('WAV SHOULD BE OUTPUT')
-			
-			# shape = (data.shape[1], data.shape[0])
-
-			# im = Image.frombytes('L', shape, bytedata.tostring())
-			# im.save(os.path.join(png_sav_dir, "lmao_scale.png"), cmin=0.0, cmax=1.0)
-
-			# im2 = Image.frombytes(data)
-			# im2.save(os.path.join(png_sav_dir, "lmao.png"))
-
-			"""
-
+			WavPipeline.scalToPng(fname,scalname,scalgzname, png_sav_dir)
 
 
 			## pb update signal -- finished scal -> png
-			# process_count.UpdateBar(p+2) 
-			# pg_window['proc_c'].update('(%d/%d)' % (p+2,(total_files*3)))
-			# pg_window.read(timeout=10)
 			update_text = ['(%d/%d)' % (p+2,(total_files*3)), '(%d/%d)' % (i,total_files),p+2,i]
 			gui_queue.put(update_text)
 
@@ -290,28 +261,21 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 
 			#gc.collect()
 			WavPipeline.flood_png(fname, png_sav_dir)
+			time.sleep(5)
+			gui_queue.put('COMPLETED FLOOD')
 
+			"""
 
 			i+=1
 			
 			## pb update signal -- finished flooding png
 			update_text = ['(%d/%d)' % (p+3,(total_files*3)), '(%d/%d)' % (i,total_files),p+3,i]
 			gui_queue.put(update_text)
-
-			# process_count.UpdateBar(p+3)
-			# pg_window['proc_c'].update('(%d/%d)' % (p+3,(total_files*3)))
-			# pg_window.read(timeout=100)
+			"""
 
 
-			# progress_bar.UpdateBar(i)
-			# pg_window['file_c'].update('(%d/%d)' % (i,total_files))
-			# pg_window.read(timeout=100)
-			
-	"""
-
-
-	gui_queue.put(42) # thread completion code
-	time.sleep(5)
+	# gui_queue.put(42) # thread completion code
+	# time.sleep(5)
 	
 
 
@@ -416,7 +380,18 @@ def main():
 
 			continue
 
-		if event in ('Load Data'):
+		if event in ('Create Dataset'):
+			folder_path = sg.popup_get_folder("Please select the folder of flooded scalogram files", title="Select Folder for dataset")
+
+			sg.popup('Creating dataset...Please wait')
+			
+			Dataset(folder_path)
+
+			sg.popup('Dataset Created!')
+
+
+
+		if event in ('Process Data'):
 			main_window.close() # close main menu
 			main_window = None
 			#gc.collect()
