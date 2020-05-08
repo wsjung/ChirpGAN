@@ -29,8 +29,8 @@ for arg in sys.argv[1:]:
 	for file in os.listdir(fullpath):
 		if file.endswith(".png"):
 			print('Info on PNG file \'' + file + '\':')
-			png = Floodfill(file)
-			png.write_to_png();
+			png = Floodfill(os.path.join(fullpath, file))
+			png.write_to_png()
 
 	#if arg.endswith('.png'):
 	#	print('Info on PNG file \'' + arg + '\':')

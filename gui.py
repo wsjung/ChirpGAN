@@ -54,6 +54,8 @@ SETTINGS_KEYS_TO_ELEMENT_KEYS = {'theme': '-THEME-', 'debug': '-DEBUG-', 'notify
 nav_btn_size = (7,1)
 menu_btn_size = (30,2)
 
+multithreaded = False
+
 def create_main_window(settings):
 	sg.theme(settings['theme'])
 
@@ -171,7 +173,7 @@ def create_prog_bar_popup(settings, total_files):
 			sg.Text('Files processed:',  size=(20,None)), 
 			sg.Text(size=(10,None), key='file_c') # show progress in %
 		],
-		[sg.Button('Start Op'), sg.Cancel(size=nav_btn_size)]
+		[sg.Button('Start', size=nav_btn_size), sg.Cancel(size=nav_btn_size)]
 	]
 
 	if debug:
@@ -195,10 +197,11 @@ def create_gan_train_window():
 
 	return sg.Window('New GAN model in training', gan_train_layout, resizable=False)
 
-def create_plt_window():
+def create_plt_window(modelname):
 
 	plt_window_layout = [
 		[sg.Text('Generated scalograms:')],
+		[sg.Text('Model: %s' % modelname)],
 		[sg.Canvas(key='-CANVAS-')],
 		[sg.Button('Ok', size=nav_btn_size), sg.Button('New', size=nav_btn_size), sg.Button('Save', size=nav_btn_size)]
 	]
@@ -238,7 +241,120 @@ def create_load_data_popup(settings, wav_warning=False, empty_warning=False):
 
 	return sg.Window('Select folder containing audio files').Layout(load_data_layout)
 
-#TODO: allow ability to select and load multiple files
+
+def main_data_process(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window):
+	"""
+	Single-threaded version of data processing pipeline
+	"""
+
+	i=0
+	
+	notify = Notify()
+
+	for splitwav in listwavs:
+		if splitwav.endswith('.wav'):
+
+			notify.send('Processing file: (%d/%d)' % (i+1,total_files))
+			
+			print('\nInitiating data processing pipeline')
+
+			p = (i*3)
+
+			wavname = os.path.join(wave_sav_dir, splitwav)			  # .wav file with full path
+			fname = splitwav[:splitwav.rfind('.')]					  # remove .wav extension
+			scalname = os.path.join(png_sav_dir , '%s.scal' % fname)	# .scal file with full path
+			scalgzname = scalname + '.gz'							   # .scal.gz file
+			mp3name = os.path.join(wave_sav_dir, fname + '.mp3')		# .mp3 name
+
+
+			###################
+			### WAV -> SCAL ###
+			###################
+			
+			## message
+			print('\nwavname: %s\nfname: %s\nscalname: %s\nscalgzname: %s\nmp3name: %s' % (wavname, fname, scalname, scalgzname, mp3name)) 
+			print('\nStarting Operation: WAV TO SCAL')
+			pg_window.read(timeout=10)
+
+			time.sleep(2)
+
+			WavPipeline.wavToScl(wavname, scalname, scalgzname, mp3name)
+
+			print('Complete: WAV TO SCAL')
+
+			## pb update  -- finished wav -> scal
+			update_text = ['(%d/%d)' % (p+1,(total_files*3)), '(%d/%d)' % (i,total_files),p+1,i]
+
+			# update text
+			pg_window['proc_c'].update(update_text[0])
+			pg_window['file_c'].update(update_text[1])
+
+			# update bar
+			pg_window['progressbar_p'].UpdateBar(update_text[2])
+			pg_window['progressbar_f'].UpdateBar(update_text[3])
+			pg_window.read(timeout=10)
+
+
+
+			###################
+			### SCAL -> PNG ###
+			###################
+
+			## message
+			print('\nStarting Operation: SCAL TO PNG')
+			pg_window.read(timeout=10)
+
+			time.sleep(2)
+			
+			WavPipeline.scalToPng(fname,scalname,scalgzname, png_sav_dir)
+
+			print('Complete: SCAL TO PNG')
+
+
+			## pb update  -- finished scal -> png
+			update_text = ['(%d/%d)' % (p+2,(total_files*3)), '(%d/%d)' % (i,total_files),p+2,i]
+			
+			# update text
+			pg_window['proc_c'].update(update_text[0])
+			pg_window['file_c'].update(update_text[1])
+
+			# update bar
+			pg_window['progressbar_p'].UpdateBar(update_text[2])
+			pg_window['progressbar_f'].UpdateBar(update_text[3])
+			pg_window.read(timeout=10)
+
+
+			###################
+			###  FLOOD PNG  ###
+			###################
+
+			## message
+			print('\nStarting Operation: PNG FLOOD-FILL')
+			pg_window.read(timeout=10)
+
+			time.sleep(2)
+
+			#gc.collect()
+			WavPipeline.flood_png(fname, png_sav_dir)
+
+			print('Complete: PNG FLOOD-FILL')
+			
+			i+=1
+			
+			## pb update signal -- finished flooding png
+			update_text = ['(%d/%d)' % (p+3,(total_files*3)), '(%d/%d)' % (i,total_files),p+3,i]
+			
+			# update text
+			pg_window['proc_c'].update(update_text[0])
+			pg_window['file_c'].update(update_text[1])
+
+			# update bar
+			pg_window['progressbar_p'].UpdateBar(update_text[2])
+			pg_window['progressbar_f'].UpdateBar(update_text[3])
+			pg_window.read(timeout=10)
+
+	
+	notify.send('Data processing complete')
 
 
 ####################################
@@ -247,12 +363,12 @@ def create_load_data_popup(settings, wav_warning=False, empty_warning=False):
 
 def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, gui_queue):
 	"""
+	multithreaded implementation of data processing pipeline 
 	Args:
 		gui_queue: Queue to communicate back to GUI with messages
 	"""
 	i=0
-	gui_queue.put("LMAO")
-	# time.sleep(5)
+	
 	for splitwav in listwavs:
 		if splitwav.endswith('.wav'):
 
@@ -307,6 +423,7 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 
 			## message
 			gui_queue.put('PNG FLOOD FILL\n')
+			"""
 
 			# pngname = os.path.join(png_sav_dir , '%s.png' % fname)
 
@@ -314,8 +431,6 @@ def main_op_thread(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, 
 			WavPipeline.flood_png(fname, png_sav_dir)
 			time.sleep(5)
 			gui_queue.put('COMPLETED FLOOD')
-
-			"""
 
 			i+=1
 			
@@ -480,7 +595,7 @@ def main():
 						gan_window = None
 						continue
 
-					plt_window = create_plt_window()
+					plt_window = create_plt_window(modelname)
 					fig = generate_images_grid(modelname)
 					fig_canvas_agg = draw_figure(plt_window['-CANVAS-'].TKCanvas, fig)
 
@@ -507,11 +622,10 @@ def main():
 							if namefile:
 								try:
 									fig.savefig(namefile)
-									plt_window.close()
-									plt_window = None
+									# plt_window.close()
+									# plt_window = None
 									sg.popup_quick_message('Image saved!', keep_on_top=True, auto_close_duration=2)
 									time.sleep(2)
-									break
 								except Exception as e:
 									sg.popup('Error saving figure')
 										
@@ -601,7 +715,7 @@ def main():
 					# load_data_popup = None
 					#gc.collect()
 
-					print(ld_values)
+					# print(ld_values)
 
 
 					wave_dir = ld_values['_FILES_'].split(';')[0]
@@ -610,9 +724,9 @@ def main():
 					print(wave_dir)
 
 					print('### SELECTED FILES ###')
-					for file_name in os.listdir(wave_dir):
-						if file_name.endswith(".wav"):
-							print(file_name)
+					# for file_name in os.listdir(wave_dir):
+					# 	if file_name.endswith(".wav"):
+					# 		print(file_name)
 					
 					# check for non .wav files in selected folder
 					total_num_files = len(os.listdir(wave_dir))
@@ -699,71 +813,93 @@ def main():
 
 						# progress bar event loop
 						started = False
-						while True:
-							event, values = pg_window.read(timeout=100)
+						if multithreaded:
+							print('MODE: MULTITHREADED')
+							# multithreaded -- gui is responsive but may (will most definitely) crash 				
+							while True:
+								event, values = pg_window.read(timeout=100)
+
+								if event in (None, 'Exit', 'Cancel'):
+									print('CANCELLED, EXITING')
+									pg_window.close()
+									pg_window = None
+									sg.popup_quick_message('Cancelled. Returning to main menu.', keep_on_top=True, auto_close_duration=1)
+									time.sleep(1)
+									break
+
+								elif event.startswith('Start') and not started: # check for thread already spun up
+									try:
+										print('STARTING THREAD')
+										thread = threading.Thread(target=main_op_thread, 
+															args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, gui_queue), 
+															daemon=True)
+										thread.start()
+										
+										started = True
+									except Exception as e:
+										print('Error starting work thread')
+								# elif event == 'Check responsive':
+								# 	print('GUI is responsive')
+
+								# check for incoming messages from thread
+								try:
+									message = gui_queue.get_nowait()
+								except queue.Empty:
+									message = None
+								
+								# check if message exists
+								if message:
+									# CHECK FOR SPECIFIC MESSAGES TO UPDATE PROGRESS BAR VALUES
+									if isinstance(message, int) and message==42: 
+										thread.join()
+										print('thread joined')
+										pg_window.close()
+										pg_window = None
+										sg.popup_quick_message("Data Processing Complete", keep_on_top=True, auto_close_duration=2)
+										time.sleep(2)
+										break
+									elif isinstance(message, str): # if string instance print it
+										print(message)
+									else: # otherwise, it is an opcode to update the progress bar
+										print(message)
+										proc_c_text = message[0]
+										file_c_text = message[1]
+										
+										p_c = message[2]
+										f_c = message[3]
+
+										# update text
+										pg_window['proc_c'].update(proc_c_text)
+										pg_window['file_c'].update(file_c_text)
+
+										# update bar
+										process_count.UpdateBar(p_c)
+										progress_bar.UpdateBar(f_c)
+
+						else:
+							print('MODE: SINGLETHREADED')
+							# single threaded -- gui will not be responsive until each step is complete.
+							event, values = pg_window.read()
 
 							if event in (None, 'Exit', 'Cancel'):
 								print('CANCELLED, EXITING')
-								sg.popup_quick_message('Cancelled. Returning to main menu.', keep_on_top=True, auto_close_duration=3)
-								time.sleep(0.5)
+								pg_window.close()
+								pg_window = None
+								sg.popup_quick_message('Cancelled. Returning to main menu.', keep_on_top=True, auto_close_duration=1)
+								time.sleep(1)
 								break
 
-							elif event.startswith('Start') and not started: # check for thread already spun up
-								try:
-									print('STARTING THREAD')
-									thread = threading.Thread(target=main_op_thread, 
-														args=(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, gui_queue), 
-														daemon=True)
-									thread.start()
-									
-									started = True
-								except Exception as e:
-									print('Error starting work thread')
-							# elif event == 'Check responsive':
-							# 	print('GUI is responsive')
+							elif event.startswith('Start') and not started:
+								started = True
 
-							# check for incoming messages from thread
-							try:
-								message = gui_queue.get_nowait()
-							except queue.Empty:
-								message = None
-							
-							# check if message exists
-							if message:
-								# CHECK FOR SPECIFIC MESSAGES TO UPDATE PROGRESS BAR VALUES
-								if isinstance(message, int) and message==42: 
-									thread.join()
-									print('thread joined')
-									sg.popup_quick_message("Data Processing Complete", keep_on_top=True, auto_close_duration=2)
-									time.sleep(2)
-									break
-								elif isinstance(message, str): # if string instance print it
-									print(message)
-								else: # otherwise, it is an opcode to update the progress bar
-									print(message)
-									proc_c_text = message[0]
-									file_c_text = message[1]
-									
-									p_c = message[2]
-									f_c = message[3]
+								# execute single-threaded processing pipeline 
+								main_data_process(listwavs, totalwavs, wave_sav_dir, png_sav_dir, total_files, pg_window)
 
-									# update text
-									pg_window['proc_c'].update(proc_c_text)
-									pg_window['file_c'].update(file_c_text)
+								pg_window.close()
+								pg_window = None
 
-									# update bar
-									process_count.UpdateBar(p_c)
-									progress_bar.UpdateBar(f_c)
+								sg.popup('Completion window', 'The provided data has successfully been processed!\nFind the results in your local directory.')
 
-						pg_window.close()
-						pg_window = None
-						#gc.collect()
-						# try:
-							
-
-						# except:
-						#	 print('################## ERROR DURING DATA PROCESSING ################')
-						#	 exit(-1)
 
 						# TODO: SEPARATELY CALL EACH FUNCTION IN THE PIPELINE
 						# TODO: UPDATE THE GUI AND THE USER ON THE PROCESS OF EACH FUNCTION CALL

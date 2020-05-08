@@ -4,7 +4,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import sys
-# from PIL import Image
+from PIL import Image
 from queue import Queue
 
 import gc
@@ -16,8 +16,7 @@ class Floodfill:
 		if type(source) == str:
 			if source.lower().endswith('.png'):
 				self.name = source[:-4]
-				# img = Image.open(source)
-				# tmp = np.array(img)
+				img = Image.open(source)
 
 				# display image
 				"""
@@ -33,11 +32,8 @@ class Floodfill:
 
 				# bucket fill threshold range
 				for threshold in range(10,11):
-					# img = Image.open(source)
-					img = mpimg.imread(source)
 					png_data = np.array(img)
-					# img.close()
-					# gc.collect()
+					img.close()
 
 					print(png_data.shape)
 
@@ -48,7 +44,7 @@ class Floodfill:
 
 					# self.png_data = png_data
 
-					flooded_png = self.flood_iterative(png_data, xy=(50,50), target_color=0, replacement_color=255, threshold=threshold)
+					flooded_png = self.flood_iterative(png_data, xy=(50,50), target_color=255, replacement_color=0, threshold=threshold)
 					self.png_data = flooded_png
 
 					print('self.png_data.shape: ', self.png_data.shape)
@@ -119,12 +115,13 @@ class Floodfill:
 			# i = 0
 			while not sq.empty():
 				# i+=1
+				# if i%100000==0: print(i)
 
 				loc = sq.get()	# get next location
 				x = loc[0]
 				y = loc[1]
-				loc = None
-				gc.collect()
+				# loc = None
+				# gc.collect()
 				
 				if self.within_image(x, y, image.shape):
 					if self.within_threshold(image[x,y], init_target_color, threshold):	# replace color if within target threshold
@@ -132,11 +129,11 @@ class Floodfill:
 				
 					# add neighbors to the queue
 					sq.put((x+1,y))
-					# sq.put((x+1,y+1))
-					# sq.put((x+1,y-1))
+					sq.put((x+1,y+1))
+					sq.put((x+1,y-1))
 					sq.put((x-1,y))
-					# sq.put((x-1,y+1))
-					# sq.put((x-1,y-1))
+					sq.put((x-1,y+1))
+					sq.put((x-1,y-1))
 					sq.put((x,y+1))
 					sq.put((x,y-1))
 			
@@ -181,19 +178,20 @@ class Floodfill:
 			return
 
 	def write_to_png(self, filename=None):
-		# from scipy.misc import toimage
-		# print('writing to PNG')
+		from scipy.misc import toimage
 
-		# if filename == None: filename == self.name + "_flooded.png"
+		if filename == None: filename = self.name + "_flooded.png"
 
-		# im = toimage(self.png_data)
-		# im.save(filename)
+		print('writing to PNG: %s' % filename)
+
+		im = toimage(self.png_data)
+		im.save(filename)
 		# im.close()
-		print('writing to PNG')
-		if filename == None: filename == self.name + "_flooded.png"
+		# print('writing to PNG')
+		# if filename == None: filename == self.name + "_flooded.png"
 		
-		import png
-		png.from_array(self.png_data, mode='L').save(filename)
+		# import png
+		# png.from_array(self.png_data, mode='L').save(filename)
 
 		
 

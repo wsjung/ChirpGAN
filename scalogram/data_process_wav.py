@@ -38,7 +38,7 @@ class DataSplitter:
                 fwav = os.path.join(wav_dir, f)
                 fname = f[:-4] # filename without extension
 
-                os.system('ffmpeg -i %s -f segment -segment_time %d -c copy ./%s/%s%%01d.wav' % (fwav, duration, save_dir, fname))
+                os.system('ffmpeg -i %s -f segment -segment_time %d -c copy ./%s/%s_%%01d.wav' % (fwav, duration, save_dir, fname))
 
                 print('compressing wav file')
                 # os.system('ffmpeg -i %s %s.mp3' % (fwav, os.path.join(wav_dir, fname)))

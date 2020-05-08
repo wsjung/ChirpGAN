@@ -135,7 +135,7 @@ class WavPipeline():
         notify = Notify()
 
         #print('\nstarting wav -> scal transformation')
-        notify.send('\nNOTIFY: starting wav -> scal transformation')
+        notify.send('Starting wav -> scal transformation')
 
         ### check for already existing .scal file
         if os.path.exists(scalname) or os.path.exists(scalgzname):
@@ -145,11 +145,13 @@ class WavPipeline():
         else:
             ################################################################
             ### create the scal file
-            #print("Creating SCAL file from \"" + wavname + "\".")
+            print("Creating SCAL file from \"" + wavname + "\".")
             scal = Scalogram(wavname)
             scal.write_to_file(filename=scalname)
-            #print("   ", scal)
-            #print('scalfile created') # log
+            print("   ", scal)
+            print('scalfile created') # log
+
+            notify.send('complete')
    
 
             ################################################################
@@ -197,7 +199,7 @@ class WavPipeline():
         notify = Notify()
 
         #print('STARTING SCL TO PNG')
-        notify.send('STARTING SCL TO PNG')
+        notify.send('Starting scal -> png export')
 
         pngname = os.path.join(png_save_dir, '%s.png' % fname)  # .png file with full path
 
@@ -235,7 +237,7 @@ class WavPipeline():
             ##print("   min:", scal[argmin[0]][argmin[1]], "(t:", argmin[0], ", f:", argmin[1], ")")
             ##print("   mean:", scal.mean())
             
-            print("WRITE TO PNG GOES HERE")
+            # print("WRITE TO PNG GOES HERE")
             # scal.write_to_png(filename=pngname)
 
             data = 1.0 - np.flipud(np.transpose(scal.data))
@@ -247,6 +249,7 @@ class WavPipeline():
             im = Image.frombytes('L', shape, bytedata.tostring())
             im.save(pngname, cmin=0.0, cmax=1.0)
 
+            notify.send('complete')
             return
             
             #print('created pngfile')
@@ -255,6 +258,7 @@ class WavPipeline():
     ### flood png ###
     #################
     def flood_png(fname, png_save_dir):
+        notify = Notify()
 
         pngname = os.path.join(png_save_dir, '%s.png' % fname)
 
@@ -266,6 +270,7 @@ class WavPipeline():
 
         floodpngname = os.path.join(flood_dir, '%s_flooded.png' % fname)    # flooded .png file with full path
         print('\n##### starting flooding png')
+        notify.send('Starting png flood-fill')
         print(floodpngname)
 
 
@@ -282,6 +287,8 @@ class WavPipeline():
 
             # png.write_to_png(filename=floodpngname)
             #print('wrote')
+
+        notify.send('complete')
 
 
 """
