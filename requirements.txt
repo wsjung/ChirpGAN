@@ -9,7 +9,7 @@ certifi=2019.11.28=py37hc8dfbb8_1
 cffi=1.14.0=py37ha419a9e_0
 chardet=3.0.4=py37hc8dfbb8_1006
 click=7.1.1=pyh8c360ce_0
-cryptography=2.8=py37hb32ad35_1
+cryptography=3.4.7=py37hce4a858_0
 cycler=0.10.0=py_2
 freetype=2.10.1=ha9979f8_0
 google-api-core=1.16.0=py37h21ff451_1
@@ -18,7 +18,7 @@ google-auth=1.11.2=py_0
 google-auth-httplib2=0.0.3=py_3
 google-auth-oauthlib=0.4.1=py_2
 googleapis-common-protos=1.51.0=py37h21ff451_1
-httplib2=0.17.0=py37hc8dfbb8_1
+httplib2=0.19.0=pyhd8ed1ab_0
 icc_rt=2019.0.0=h0cc432a_1
 icu=64.2=he025d50_1
 idna=2.9=py_1
@@ -40,7 +40,7 @@ numpy=1.18.1=py37hc71023c_0
 oauthlib=3.0.1=py_0
 olefile=0.46=py_0
 openssl=1.1.1e=hfa6e2cd_0
-pillow=7.0.0=py37h91e7a8d_1
+pillow=8.1.2=py37hd4e48bc_0
 pip=20.0.2=py_2
 protobuf=3.11.4=py37he025d50_0
 pyasn1=0.4.8=py_0
@@ -60,7 +60,7 @@ pytz=2019.3=py_0
 qt=5.12.5=h7ef1ec2_0
 requests=2.23.0=pyh8c360ce_2
 requests-oauthlib=1.2.0=py_0
-rsa=4.0=py_0
+rsa=4.7.2=pyh44b312d_0
 scipy=1.1.0=py37h29ff71c_2
 setuptools=46.1.1=py37hc8dfbb8_0
 simplejson=3.17.0=py37hfa6e2cd_0
